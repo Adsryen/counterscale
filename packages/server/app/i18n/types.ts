@@ -120,6 +120,12 @@ export type Messages = {
         langZh: string;
         langEn: string;
     };
+    theme: {
+        label: string;
+        system: string;
+        light: string;
+        dark: string;
+    };
     console: {
         nav: {
             overview: string;
@@ -147,7 +153,7 @@ export type Messages = {
             title: string;
             subtitle: string;
             themeTitle: string;
-            themeSoon: string;
+            themeDesc: string;
             cfTitle: string;
             cfDesc: string;
         };

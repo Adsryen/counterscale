@@ -123,6 +123,12 @@ export const zh: Messages = {
         langZh: "中文",
         langEn: "EN",
     },
+    theme: {
+        label: "主题",
+        system: "系统",
+        light: "浅色",
+        dark: "深色",
+    },
 
     console: {
         nav: {
@@ -151,7 +157,7 @@ export const zh: Messages = {
             title: "设置",
             subtitle: "主题、语言与运维入口。",
             themeTitle: "外观",
-            themeSoon: "跟随系统 / 浅色 / 深色切换将在主题阶段上线。",
+            themeDesc: "可跟随系统，或固定浅色 / 深色；选择会写入 Cookie 并记住。",
             cfTitle: "Cloudflare",
             cfDesc: "在 Cloudflare 控制台打开本 Worker。",
         },

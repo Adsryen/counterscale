@@ -17,6 +17,13 @@ import {
     type Locale,
 } from "~/i18n";
 import { LocaleProvider, useLocale } from "~/i18n/LocaleContext";
+import {
+    resolveThemePreference,
+    THEME_BOOT_SCRIPT,
+    type ThemePreference,
+} from "~/theme";
+import { ThemeProvider } from "~/theme/ThemeContext";
+import { ThemeSwitcher } from "~/components/ThemeSwitcher";
 
 export const links: LinksFunction = () => [{ rel: "stylesheet", href: styles }];
 
@@ -54,10 +61,12 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
     // specified during deploy via wrangler --var VERSION:value
     const version = context.cloudflare?.env?.VERSION;
     const user = await getUser(request, context.cloudflare.env);
+    const cookieHeader = request.headers.get("Cookie");
     const locale = resolveLocale({
-        cookieHeader: request.headers.get("Cookie"),
+        cookieHeader,
         acceptLanguage: request.headers.get("Accept-Language"),
     });
+    const theme = resolveThemePreference({ cookieHeader });
 
     return {
         version: {
@@ -68,6 +77,7 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
         user,
         isAuthEnabled: isAuthEnabled(context.cloudflare.env),
         locale,
+        theme,
     };
 };
 
@@ -76,7 +86,7 @@ function LanguageSwitcher() {
 
     return (
         <div
-            className="ml-2 inline-flex items-center text-sm border border-input rounded-md overflow-hidden"
+            className="inline-flex items-center text-sm border border-input rounded-full overflow-hidden"
             role="group"
             aria-label="Language"
         >
@@ -117,12 +127,13 @@ export const Layout = ({ children = [] }: { children: React.ReactNode }) => {
         origin: "counterscale.dev",
         url: "https://counterscale.dev/",
         locale: "zh" as Locale,
+        theme: "system" as ThemePreference,
     };
 
     const locale = (data as { locale?: Locale }).locale ?? "zh";
 
     return (
-        <html lang={htmlLang(locale)}>
+        <html lang={htmlLang(locale)} suppressHydrationWarning>
             <head>
                 <meta charSet="utf-8" />
                 <meta
@@ -131,6 +142,9 @@ export const Layout = ({ children = [] }: { children: React.ReactNode }) => {
                 />
                 <link rel="icon" type="image/x-icon" href="/favicon.png" />
                 <meta name="robots" content="noindex" />
+                <script
+                    dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+                />
 
                 <meta property="og:url" content={data.url} />
                 <meta property="og:type" content="website" />
@@ -185,10 +199,9 @@ export default function App() {
 
     return (
         <LocaleProvider initialLocale={data.locale}>
-            <AppShell
-                homeUrl={homeUrl}
-                data={data}
-            />
+            <ThemeProvider initialPreference={data.theme}>
+                <AppShell homeUrl={homeUrl} data={data} />
+            </ThemeProvider>
         </LocaleProvider>
     );
 }
@@ -210,11 +223,9 @@ function AppShell({
         pathname = path || "/";
     }
     const isConsole = pathname.startsWith("/console");
-    const isLoginOnly =
-        pathname === "/" || pathname === "";
 
     if (isConsole) {
-        // Console routes render their own chrome; keep only content + locale.
+        // Console routes render their own chrome; keep only content + providers.
         return (
             <div className="mt-0 sm:mt-4">
                 <main role="main" className="w-full">
@@ -257,6 +268,7 @@ function AppShell({
                         />
                     </div>
                     <div className="flex items-center gap-2">
+                        <ThemeSwitcher />
                         <LanguageSwitcher />
                         {data.user?.authenticated && data.isAuthEnabled ? (
                             <a

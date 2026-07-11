@@ -130,6 +130,12 @@ export const en: Messages = {
         langZh: "中文",
         langEn: "EN",
     },
+    theme: {
+        label: "Theme",
+        system: "System",
+        light: "Light",
+        dark: "Dark",
+    },
 
     console: {
         nav: {
@@ -158,7 +164,7 @@ export const en: Messages = {
             title: "Settings",
             subtitle: "Theme, language, and operations links.",
             themeTitle: "Appearance",
-            themeSoon: "System / light / dark toggle arrives in the theme phase.",
+            themeDesc: "Follow system appearance, or force light / dark. Preference is saved in a cookie.",
             cfTitle: "Cloudflare",
             cfDesc: "Open the Worker in Cloudflare dashboard.",
         },

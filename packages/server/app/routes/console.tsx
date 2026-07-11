@@ -1,7 +1,8 @@
-import { LoaderFunctionArgs, Outlet, redirect, useLoaderData, useLocation, useNavigation } from "react-router";
+import { LoaderFunctionArgs, Outlet, useLoaderData, useLocation, useNavigation } from "react-router";
 import { requireAuth } from "~/lib/auth";
 import { useLocale } from "~/i18n/LocaleContext";
 import { cn } from "~/lib/utils";
+import { ThemeSwitcher } from "~/components/ThemeSwitcher";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     await requireAuth(request, context.cloudflare.env);
@@ -66,7 +67,8 @@ export default function ConsoleLayout() {
                     <div className="text-sm text-muted-foreground">
                         {busy ? "…" : t("console.topbar.ready")}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <ThemeSwitcher />
                         <div
                             className="inline-flex items-center text-sm border border-input rounded-full overflow-hidden"
                             role="group"
