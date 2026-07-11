@@ -6,115 +6,128 @@
 [![License](https://img.shields.io/github/license/benvinegar/counterscale)](https://github.com/benvinegar/counterscale/blob/master/LICENSE)
 [![codecov](https://codecov.io/gh/benvinegar/counterscale/graph/badge.svg?token=NUHURNB682)](https://codecov.io/gh/benvinegar/counterscale)
 
-Counterscale is a simple web analytics tracker and dashboard that you self-host on Cloudflare.
+Counterscale 是一款可自托管在 [Cloudflare](https://cloudflare.com) 上的简易网站分析（Web Analytics）追踪器与仪表盘。
 
-It's designed to be easy to deploy and maintain, and should cost you near-zero to operate – even at high levels of traffic (Cloudflare's [free tier](https://developers.cloudflare.com/workers/platform/pricing/#workers) could hypothetically support up to 100k hits/day).
+它的目标是部署简单、维护成本低，即便流量较大，运营费用也接近为零——Cloudflare [Workers 免费额度](https://developers.cloudflare.com/workers/platform/pricing/#workers) 理论上可支撑约每天 10 万次访问。
 
-_Counterscale is sponsored by [Modem, your dev-team's auto-triage PM](https://modem.dev)._
+## 致谢与二次开发说明
 
-## License
+本仓库基于 [benvinegar/counterscale](https://github.com/benvinegar/counterscale) 进行二次开发。
 
-Counterscale is free, open source software made available under the MIT license. See: [LICENSE](LICENSE).
+感谢原作者 [Ben Vinegar](https://github.com/benvinegar) 及所有贡献者开源并持续维护 Counterscale。本项目站在原项目之上扩展与修改；核心设计与大量实现均来自上游。
 
-## Limitations
+- 上游仓库：[https://github.com/benvinegar/counterscale](https://github.com/benvinegar/counterscale)
+- 上游文档与发布说明：[Releases](https://github.com/benvinegar/counterscale/releases)
+- 原项目赞助方：[Modem](https://modem.dev)（开发团队的自动分诊 PM）
 
-Counterscale is powered primarily by Cloudflare Workers and [Workers Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/). As of February 2025, Workers Analytics Engine has _maximum 90 days retention_, which means Counterscale can only show the last 90 days of recorded data. We do, however, provide long term storage of your data in an R2 bucket using Apache Arrow files. This long term storage is enabled by default and can be disabled using the CLI.
+若你需要官方/上游版本，请直接使用原仓库。本 fork 的改动以本仓库为准；与上游行为不一致处，以本仓库说明为准。
 
-## Installation
+## 许可证
 
-### Requirements
+Counterscale 以 MIT 许可证发布的免费开源软件。详见：[LICENSE](LICENSE)。
 
-* macOS or Linux environment
-* Node v20 or above
-* An active [Cloudflare](https://cloudflare.com) account (either free or paid)
+## 限制
 
-### Cloudflare Preparation
+Counterscale 主要依赖 Cloudflare Workers 与 [Workers Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/)。截至 2025 年 2 月，Workers Analytics Engine **最长保留约 90 天** 数据，因此仪表盘默认只能展示最近 90 天的记录。
 
-If you don't have one already, [create a Cloudflare account here](https://dash.cloudflare.com/sign-up) and verify your email address.
+不过，项目也支持将数据以 Apache Arrow 文件形式长期保存在 R2 中。长期存储默认开启，可通过 CLI 关闭。
 
-1. Go to your Cloudflare dashboard and, if you do not already have one, set up a [Cloudflare Workers subdomain](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/)
-1. Enable [Cloudflare Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/) beta for your account. To enable, navigate to Storage & Databases > Analytics Engine and click the "Enable" button ([screenshot](./docs/enable-analytics-engine.png)). You can ignore and exit out of the "Create Dataset" menu that will pop up next.
-    - Note: If this is your first time using Workers, you have to create a Worker before you can enable the Analytics Engine. Navigate to Workers & Pages > Overview, click the "Create Worker" button ([screenshot](./docs/create-worker.png)) to create a "Hello World" worker (it doesn't matter what you name this Worker as you can delete it later).
-1. Create a [Cloudflare API token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/). This token needs `Account.Account Analytics` permissions at a minimum ([screenshot](./docs/api-token.png)).
-    - _WARNING: Keep this window open or copy your API token somewhere safe (e.g. a password manager), because if you close this window you will not be able to access this API token again and have to start over._
+## 安装
 
-### Deploy Counterscale
+### 环境要求
 
-First, sign into Cloudflare and authorize the Cloudflare CLI (Wrangler) using:
+- macOS 或 Linux 环境
+- Node.js v20 及以上
+- 有效的 [Cloudflare](https://cloudflare.com) 账号（免费或付费均可）
+
+### Cloudflare 准备
+
+若还没有账号，请先 [注册 Cloudflare](https://dash.cloudflare.com/sign-up) 并完成邮箱验证。
+
+1. 打开 Cloudflare 控制台；若尚未配置，请先设置 [Workers 子域名](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/)。
+2. 为账号启用 [Cloudflare Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/)（测试功能）。路径：Storage & Databases → Analytics Engine，点击 **Enable**（[截图](./docs/enable-analytics-engine.png)）。随后弹出的 “Create Dataset” 可忽略并关闭。
+   - 说明：若你是第一次使用 Workers，需要先创建任意一个 Worker，才能启用 Analytics Engine。路径：Workers & Pages → Overview，点击 **Create Worker**（[截图](./docs/create-worker.png)）创建 “Hello World” Worker（名称随意，之后可删除）。
+3. 创建 [Cloudflare API Token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/)。至少需要 `Account.Account Analytics` 权限（[截图](./docs/api-token.png)）。
+   - **警告：请保持该页面打开，或把 Token 妥善保存（如密码管理器）。关闭后无法再次查看该 Token，只能重新创建。**
+
+### 部署 Counterscale
+
+先登录 Cloudflare，并授权 Cloudflare CLI（Wrangler）：
 
 ```bash
 npx wrangler login
 ```
 
-Afterwards, run the Counterscale installer:
+然后运行 Counterscale 安装程序：
 
 ```bash
 npx @counterscale/cli@latest install
 ```
 
-Follow the prompts. You will be asked for the Cloudflare API token you created earlier. You'll also be asked if you want to protect your dashboard with a password:
+按提示操作。需要填入刚才创建的 Cloudflare API Token。还会询问是否为仪表盘设置密码保护：
 
-- If you choose **Yes** (recommended for public deployments), you'll be prompted to create a password that will be required to access your analytics dashboard.
-- If you choose **No**, your dashboard will be publicly accessible without authentication.
+- 选择 **Yes**（公开部署时建议开启）：将提示你设置访问仪表盘所需的密码。
+- 选择 **No**：仪表盘可公开访问，无需登录。
 
-Once the script has finished, the server application should be deployed. Visit `https://{subdomain-emitted-during-deploy}.workers.dev` to verify.
+脚本结束后，服务端应用应已部署。访问 `https://{部署时输出的子域名}.workers.dev` 进行验证。
 
-NOTE: _If this is your first time deploying Counterscale, it may take take a few minutes before the Worker subdomain becomes live._
+**注意：** 首次部署 Counterscale 时，Worker 子域名生效可能需要几分钟。
 
-### Start Recording Web Traffic from Your Website(s)
+### 在网站上开始记录访问
 
-You can load the tracking code using one of two methods:
+可通过以下方式之一加载追踪代码：
 
-#### 1. Script Loader (CDN)
+#### 1. 脚本加载（CDN）
 
-When Counterscale is deployed, it makes `tracker.js` available at the URL you deployed to:
+部署完成后，可在你的部署 URL 下获取 `tracker.js`：
 
 ```
-https://{subdomain-emitted-during-deploy}.workers.dev/tracker.js
+https://{部署时输出的子域名}.workers.dev/tracker.js
 ```
 
-To start reporting website traffic from your web property, copy/paste the following snippet into your website HTML:
+将以下片段复制到网站 HTML 中：
 
 ```html
 <script
     id="counterscale-script"
     data-site-id="your-unique-site-id"
-    src="https://{subdomain-emitted-during-deploy}.workers.dev/tracker.js"
+    src="https://{部署时输出的子域名}.workers.dev/tracker.js"
     defer
 ></script>
 ```
 
-#### 2. Package/Module
+#### 2. 包 / 模块方式
 
-The Counterscale tracker is published as an npm module:
+Counterscale tracker 已发布为 npm 包：
 
 ```bash
 npm install @counterscale/tracker
 ```
 
-Initialize Counterscale with your site ID and the URL of your deployed reporting endpoint:
+使用你的站点 ID 与已部署的上报端点初始化：
 
 ```typescript
 import * as Counterscale from "@counterscale/tracker";
 
 Counterscale.init({
     siteId: "your-unique-site-id",
-    reporterUrl: "https://{subdomain-emitted-during-deploy}.workers.dev/collect",
+    reporterUrl: "https://{部署时输出的子域名}.workers.dev/collect",
 });
 ```
 
-**Available Methods**
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `init(opts)` | `ClientOpts` | `void` | Initializes the Counterscale client with site configuration. Creates a global client instance if one doesn't exist. |
-| `isInitialized()` | None | `boolean` | Checks if the Counterscale client has been initialized. Returns true if client exists, false otherwise. |
-| `getInitializedClient()` | None | `Client \| undefined` | Returns the initialized client instance or undefined if not initialized. |
-| `trackPageview(opts?)` | `TrackPageviewOpts?` | `void` | Tracks a pageview event. Requires client to be initialized first. Automatically detects URL and referrer if not provided. |
-| `cleanup()` | None | `void` | Cleans up the client instance and removes event listeners. Sets global client to undefined. |
+**可用方法**
 
-#### 3. Server-Side Module
+| 方法 | 参数 | 返回类型 | 说明 |
+|------|------|----------|------|
+| `init(opts)` | `ClientOpts` | `void` | 使用站点配置初始化客户端。若不存在全局实例则创建。 |
+| `isInitialized()` | 无 | `boolean` | 检查客户端是否已初始化。 |
+| `getInitializedClient()` | 无 | `Client \| undefined` | 返回已初始化的客户端实例；未初始化则为 `undefined`。 |
+| `trackPageview(opts?)` | `TrackPageviewOpts?` | `void` | 记录一次页面浏览。需先初始化；未传 URL/来源时会自动检测。 |
+| `cleanup()` | 无 | `void` | 清理客户端实例与事件监听，并将全局客户端置为 `undefined`。 |
 
-If you'd prefer to track analytics on the server, instead of running the tracker in the browser, use the `/server` module:
+#### 3. 服务端模块
+
+若希望在服务端而非浏览器中统计，可使用 `/server` 模块：
 
 ```bash
 npm install @counterscale/tracker
@@ -123,132 +136,132 @@ npm install @counterscale/tracker
 ```typescript
 import * as Counterscale from "@counterscale/tracker/server";
 
-// Initialize the tracker
+// 初始化
 Counterscale.init({
     siteId: "your-unique-site-id",
     reporterUrl:
-        "https://{subdomain-emitted-during-deploy}.workers.dev/collect",
-    reportOnLocalhost: false, // optional, defaults to false
-    timeout: 2000, // optional, defaults to 1000ms
+        "https://{部署时输出的子域名}.workers.dev/collect",
+    reportOnLocalhost: false, // 可选，默认 false
+    timeout: 2000, // 可选，默认 1000ms
 });
 
-// Track a pageview
+// 记录页面浏览
 await Counterscale.trackPageview({
-    url: "https://example.com/page", // or relative: '/page'
-    hostname: "example.com", // required for relative URLs
+    url: "https://example.com/page", // 或相对路径：'/page'
+    hostname: "example.com", // 使用相对 URL 时必填
     referrer: "https://google.com",
     utmSource: "social",
     utmMedium: "twitter",
 });
 ```
 
-**Server Module Methods**
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `init(opts)` | `ServerClientOpts` | `void` | Initializes the server-side tracker. |
-| `isInitialized()` | None | `boolean` | Checks if the tracker has been initialized. |
-| `getInitializedClient()` | None | `ServerClient \| undefined` | Returns the initialized server client instance. |
-| `trackPageview(opts)` | `TrackPageviewOpts` | `Promise<void>` | Tracks a pageview event. Requires explicit URL and hostname parameters. |
-| `cleanup()` | None | `void` | Cleans up the server client instance. |
+**服务端模块方法**
 
-The server module is designed for backend applications and differs from the client-side version:
+| 方法 | 参数 | 返回类型 | 说明 |
+|------|------|----------|------|
+| `init(opts)` | `ServerClientOpts` | `void` | 初始化服务端 tracker。 |
+| `isInitialized()` | 无 | `boolean` | 检查是否已初始化。 |
+| `getInitializedClient()` | 无 | `ServerClient \| undefined` | 返回已初始化的服务端客户端实例。 |
+| `trackPageview(opts)` | `TrackPageviewOpts` | `Promise<void>` | 记录页面浏览。需显式传入 URL 与 hostname。 |
+| `cleanup()` | 无 | `void` | 清理服务端客户端实例。 |
 
-- No DOM-dependent features (auto-tracking, browser instrumentation)
-- Uses fetch API instead of XMLHttpRequest
-- Requires explicit URL and hostname parameters
-- Fire-and-forget - tracking errors won't throw exceptions
+服务端模块面向后端场景，与浏览器端差异包括：
 
-## Upgrading
+- 无 DOM 相关能力（自动追踪、浏览器埋点等）
+- 使用 `fetch`，而非 `XMLHttpRequest`
+- 需要显式传入 URL 与 hostname
+- 采用 fire-and-forget：追踪错误不会抛出异常
 
-For most releases, upgrading is as simple as re-running the CLI installer:
+## 升级
+
+多数版本升级只需重新运行 CLI 安装程序：
 
 ```bash
 npx @counterscale/cli@latest install
 
-# OR
+# 或指定版本
 # npx @counterscale/cli@VERSION install
 ```
 
-You won't have to enter a new API key, and your data will carry forrward.
+一般无需重新输入 API Key，历史数据会保留。
 
+Counterscale 遵循 [语义化版本（Semantic Versioning）](https://semver.org/)。升级到大版本（如 2.x、3.x、4.x）时可能有额外步骤，请查阅上游 [release notes](https://github.com/benvinegar/counterscale/releases)。
 
-Counterscale uses [semantic versioning](https://semver.org/). If upgrading to a major version (e.g. 2.x, 3.x, 4.x), there may be extra steps. Please consult the [release notes](https://github.com/benvinegar/counterscale/releases).
+## 故障排查
 
-## Troubleshooting
+若网站无法立即访问（例如 “Secure Connection Failed”），可能是 Cloudflare 尚未激活你的子域名（`yoursubdomain.workers.dev`）。通常需要约一分钟；可在 Cloudflare 控制台查看新创建的 Worker 状态（Workers & Pages → counterscale）。
 
-If the website is not immediately available (e.g. "Secure Connection Failed"), it could be because Cloudflare has not yet activated your subdomain (yoursubdomain.workers.dev). This process can take a minute; you can check in on the progress by visiting the newly created worker in your Cloudflare dashboard (Workers & Pages → counterscale).
+## 进阶用法
 
-## Advanced
+### 手动记录页面浏览
 
-### Manually Track Pageviews
-
-When you initialize the Counterscale tracker, set `autoTrackPageviews` to `false`. Then, you can manually call `Counterscale.trackPageview()` when you want to record a pageview.
+初始化 tracker 时将 `autoTrackPageviews` 设为 `false`，再在需要时手动调用 `Counterscale.trackPageview()`：
 
 ```typescript
 import * as Counterscale from "@counterscale/tracker";
 
 Counterscale.init({
     siteId: "your-unique-site-id",
-    reporterUrl: "https://{subdomain-emitted-during-deploy}.workers.dev/collect",
-    autoTrackPageviews: false, // <- don't forget this
+    reporterUrl: "https://{部署时输出的子域名}.workers.dev/collect",
+    autoTrackPageviews: false, // 关闭自动追踪
 });
 
-// ... when a pageview happens
+// 发生页面浏览时
 Counterscale.trackPageview();
 ```
 
-### Custom Domains
+### 自定义域名
 
-The deployment URL can always be changed to go behind a custom domain you own. [More here](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
+部署 URL 可绑定到你自己的域名。详见 Cloudflare 文档：[Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)。
 
-## CLI Commands
+## CLI 命令
 
-Counterscale provides a command-line interface (CLI) to help you install, configure, and manage your deployment.
+Counterscale 提供命令行工具（CLI），用于安装、配置与管理部署。
 
-### Available Commands
+### 可用命令
 
 #### `install`
 
-The main command for installing and deploying Counterscale to Cloudflare.
+安装并将 Counterscale 部署到 Cloudflare 的主命令。
 
 ```bash
 npx @counterscale/cli@latest install
 ```
 
-Options:
+选项：
 
-- `--advanced` - Enable advanced mode to customize worker name and analytics dataset
-- `--verbose` - Show additional logging information
+- `--advanced` - 启用高级模式，可自定义 Worker 名称与 analytics dataset
+- `--verbose` - 输出更详细的日志
 
 #### `auth`
 
-Manage authentication settings for your Counterscale deployment.
+管理部署的认证设置。
 
 ```bash
 npx @counterscale/cli@latest auth [subcommand]
 ```
 
-Available subcommands:
+子命令：
 
-- `enable` - Enable authentication for your Counterscale deployment
-- `disable` - Disable authentication for your Counterscale deployment
-- `roll` - Update/roll the authentication password
+- `enable` - 启用认证
+- `disable` - 关闭认证
+- `roll` - 更新 / 轮换认证密码
 
-##### Examples:
+##### 示例
 
-Enable authentication:
+启用认证：
 
 ```bash
 npx @counterscale/cli@latest auth enable
 ```
 
-Disable authentication:
+关闭认证：
 
 ```bash
 npx @counterscale/cli@latest auth disable
 ```
 
-Update/roll the password:
+更新 / 轮换密码：
 
 ```bash
 npx @counterscale/cli@latest auth roll
@@ -256,46 +269,46 @@ npx @counterscale/cli@latest auth roll
 
 #### `storage`
 
-Manage long term storage settings for your Counterscale deployment.
+管理长期存储设置。
 
 ```bash
 npx @counterscale/cli@latest storage [subcommand]
 ```
 
-Available subcommands:
+子命令：
 
-- `enable` - Enable storage for your Counterscale deployment
-- `disable` - Disable storage for your Counterscale deployment
+- `enable` - 启用长期存储
+- `disable` - 关闭长期存储
 
-##### Examples:
+##### 示例
 
-Enable storage:
+启用存储：
 
 ```bash
 npx @counterscale/cli@latest storage enable
 ```
 
-Disable storage:
+关闭存储：
 
 ```bash
 npx @counterscale/cli@latest storage disable
 ```
 
-## Development
+## 开发
 
-See [Contributing](CONTRIBUTING.md) for information on how to get started.
+本地开发与贡献方式见 [Contributing](CONTRIBUTING.md)（英文）。
 
-## Notes
+## 说明
 
-### Database
+### 数据库
 
-There is only one "database": the Cloudflare Analytics Engine dataset, which is communicated entirely over HTTP using Cloudflare's API.
+实际上只有一个“数据库”：Cloudflare Analytics Engine 数据集，通过 Cloudflare API 以 HTTP 通信。
 
-Right now there is no local "test" database. This means in local development:
+目前没有本地“测试数据库”。因此在本地开发时：
 
-- Writes will no-op (no hits will be recorded)
-- Reads will be read from the production Analaytics Engine dataset (local development shows production data)
+- 写入会 no-op（不会真正记录访问）
+- 读取会打到生产环境的 Analytics Engine 数据集（本地开发界面看到的是生产数据）
 
-### Sampling
+### 采样（Sampling）
 
-Cloudflare Analytics Engine uses sampling to make high volume data ingestion/querying affordable at scale (this is similar to most other analytics tools, see [Google Analytics on Sampling](https://support.google.com/analytics/answer/2637192?hl=en#zippy=%2Cin-this-article)). You can find out more how [sampling works with CF AE here](https://developers.cloudflare.com/analytics/analytics-engine/sampling/).
+Cloudflare Analytics Engine 使用采样，以便在高流量下仍能以较低成本完成数据写入与查询（多数分析工具类似，参见 [Google Analytics 关于采样的说明](https://support.google.com/analytics/answer/2637192?hl=en#zippy=%2Cin-this-article)）。CF AE 采样机制详见：[Sampling](https://developers.cloudflare.com/analytics/analytics-engine/sampling/)。
