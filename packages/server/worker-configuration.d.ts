@@ -13,6 +13,7 @@ declare namespace Cloudflare {
 		DAILY_ROLLUPS: R2Bucket;
 		WEB_COUNTER_AE: AnalyticsEngineDataset;
 		ASSETS: Fetcher;
+		DB: D1Database;
 	}
 }
 interface Env extends Cloudflare.Env {}

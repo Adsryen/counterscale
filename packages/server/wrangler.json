@@ -1,7 +1,9 @@
 {
     "main": "./workers/app.ts",
     "name": "counterscale",
-    "compatibility_flags": ["nodejs_compat_v2"],
+    "compatibility_flags": [
+        "nodejs_compat_v2"
+    ],
     "compatibility_date": "2024-12-13",
     "assets": {
         "binding": "ASSETS",
@@ -24,5 +26,13 @@
         "crons": [
             "0 2 * * *"
         ]
-    }
+    },
+    "d1_databases": [
+        {
+            "binding": "DB",
+            "database_name": "counterscale",
+            "database_id": "63a56a11-4de0-404a-af96-21e03995cc78",
+            "migrations_dir": "./migrations"
+        }
+    ]
 }

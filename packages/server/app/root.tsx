@@ -151,11 +151,7 @@ export default function App() {
                         <a href="/install" className="ml-2">
                             Install
                         </a>
-                        <a
-                            href="/admin-redirect"
-                            target="_blank"
-                            className="hidden sm:inline-block ml-2"
-                        >
+                        <a href="/admin" className="hidden sm:inline-block ml-2">
                             Admin
                         </a>
                         {(data.user?.authenticated && data.isAuthEnabled) && (
