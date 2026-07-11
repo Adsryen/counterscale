@@ -1,0 +1,133 @@
+import type { Messages } from "../types";
+
+export const en: Messages = {
+    nav: {
+        dashboard: "Dashboard",
+        install: "Install",
+        admin: "Admin",
+        logout: "Logout",
+    },
+    footer: {
+        version: "Version",
+    },
+    login: {
+        title: "Welcome to Counterscale",
+        subtitleGuest: "Enter your password to access the dashboard",
+        subtitleAuthed: "Continue to access your analytics dashboard.",
+        subtitleNoAuth: "Access your analytics dashboard.",
+        passwordPlaceholder: "Enter your password",
+        passwordRequired: "Password is required",
+        invalidPassword: "Invalid password",
+        signIn: "Sign In",
+        signingIn: "Signing In...",
+        goDashboard: "Go to Dashboard",
+        passwordLabel: "Password",
+    },
+    install: {
+        title: "Install tracking",
+        intro:
+            "Generate embed code for your sites. Use a unique site-id per property, then open the dashboard after traffic arrives.",
+        siteIdTitle: "Site ID",
+        siteIdDesc:
+            "Appears as data-site-id / tracker sid. Letters, numbers, . - _ only.",
+        siteIdLabel: "Site ID",
+        sanitizedHint: "Snippet will use sanitized id:",
+        workerOrigin: "Worker origin:",
+        htmlTitle: "HTML script (CDN)",
+        htmlDesc: "Paste before </body> on any site.",
+        moduleTitle: "JavaScript module",
+        moduleDesc: "For SPAs. Install @counterscale/tracker then call init.",
+        copy: "Copy",
+        copied: "Copied",
+        openDashboardSite: "Open dashboard for this site",
+        openDashboardAll: "All sites dashboard",
+    },
+    admin: {
+        title: "Admin",
+        intro:
+            "Manage site metadata. Pageviews still live in Analytics Engine; unknown site IDs can still report via /collect.",
+        addTitle: "Add site",
+        addDesc: "siteId becomes data-site-id in the embed snippet.",
+        displayName: "Display name",
+        siteId: "Site ID",
+        allowedHosts: "Allowed hosts",
+        allowedHostsOptional: "Allowed hosts (optional, informational)",
+        allowedHostsPlaceholder: "blog.example.com",
+        create: "Create site",
+        sitesTitle: "Sites",
+        sitesEmpty: "No sites yet — create one above.",
+        sitesCount: "{count} site(s)",
+        status: "Status",
+        actions: "Actions",
+        enabled: "Enabled",
+        disabled: "Disabled",
+        snippet: "Snippet",
+        dashboard: "Dashboard",
+        edit: "Edit",
+        save: "Save",
+        cancel: "Cancel",
+        delete: "Delete",
+        deleteConfirm:
+            'Delete site "{siteId}"? Analytics data in AE is kept.',
+        cfConsole: "Open Cloudflare Worker console",
+        created: 'Created site "{siteId}"',
+        updated: 'Updated "{siteId}"',
+        deleted: 'Deleted "{siteId}"',
+        unknownIntent: "Unknown intent: {intent}",
+        missingDb:
+            "Missing D1 binding: DB is not configured. Create a D1 database and add it to wrangler.json.",
+        missingDbShort: "Missing D1 binding: DB is not configured.",
+    },
+    dashboard: {
+        today: "Today",
+        yesterday: "Yesterday",
+        hours24: "24 hours",
+        days7: "7 days",
+        days30: "30 days",
+        days90: "90 days",
+        unknownSite: "(unknown)",
+        errorTitle: "Dashboard Error",
+        errorMessage:
+            "An unexpected error occurred while loading the dashboard.",
+        errorSuggestion:
+            "Please try refreshing the page or contact support if the issue persists.",
+        configError: "Configuration Error",
+        missingAccountId: "Missing Cloudflare Account ID configuration.",
+        missingAccountIdHint:
+            "Please ensure CF_ACCOUNT_ID is properly configured in your environment variables.",
+        missingToken: "Missing Cloudflare Bearer Token configuration.",
+        missingTokenHint:
+            "Please ensure CF_BEARER_TOKEN is properly configured in your environment variables.",
+        configIncomplete: "Server configuration is incomplete.",
+        checkAeConfig:
+            "Please check your Cloudflare Analytics Engine configuration.",
+        serverError: "Server Error",
+        serverErrorMsg: "The server encountered an internal error.",
+        serverErrorHint:
+            "This is likely a temporary issue. Please try again in a few moments.",
+        httpError: "An HTTP error occurred.",
+        aeError: "Analytics Engine Error",
+        aeErrorMsg: "Failed to connect to Cloudflare Analytics Engine.",
+        aeErrorHint:
+            "This could be due to network issues or Analytics Engine being temporarily unavailable. Please try again in a few moments.",
+        authError: "Authentication Error",
+        authErrorHint:
+            "Please check your credentials and try logging in again.",
+        invalidRange: "Invalid Time Range",
+        invalidRangeMsg: "The selected time interval is not supported.",
+        invalidRangeHint:
+            "Please select a different time range from the dropdown.",
+        appError: "Application Error",
+        appErrorMsg: "An unexpected application error occurred.",
+        tryAgain: "Try Again",
+        backDashboard: "Back to Dashboard",
+        suggestion: "Suggestion:",
+        context: "Context when error occurred:",
+        site: "Site:",
+        timeRange: "Time Range:",
+    },
+    common: {
+        langZh: "中文",
+        langEn: "EN",
+    },
+};

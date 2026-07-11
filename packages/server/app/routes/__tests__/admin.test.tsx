@@ -16,6 +16,7 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import AdminSites, { action, loader } from "../admin";
 import { requireAuth } from "~/lib/auth";
 import * as sites from "~/lib/sites";
+import { LocaleProvider } from "~/i18n/LocaleContext";
 
 vi.mock("~/lib/auth", () => ({
     requireAuth: vi.fn(),
@@ -33,6 +34,10 @@ vi.mock("~/lib/sites", async () => {
         deleteSite: vi.fn(),
     };
 });
+
+function wrap(ui: React.ReactNode) {
+    return <LocaleProvider initialLocale="en">{ui}</LocaleProvider>;
+}
 
 describe("admin route", () => {
     beforeEach(() => {
@@ -139,7 +144,7 @@ describe("admin route", () => {
             },
         ]);
 
-        render(<RemixStub initialEntries={["/admin"]} />);
+        render(wrap(<RemixStub initialEntries={["/admin"]} />));
 
         await waitFor(() => {
             expect(screen.getByText("Admin")).toBeInTheDocument();

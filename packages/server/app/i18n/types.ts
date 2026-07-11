@@ -1,0 +1,125 @@
+export type Locale = "en" | "zh";
+
+export const LOCALES: Locale[] = ["en", "zh"];
+export const DEFAULT_LOCALE: Locale = "zh";
+export const LOCALE_COOKIE = "__counterscale_locale";
+
+export type Messages = {
+    nav: {
+        dashboard: string;
+        install: string;
+        admin: string;
+        logout: string;
+    };
+    footer: {
+        version: string;
+    };
+    login: {
+        title: string;
+        subtitleGuest: string;
+        subtitleAuthed: string;
+        subtitleNoAuth: string;
+        passwordPlaceholder: string;
+        passwordRequired: string;
+        invalidPassword: string;
+        signIn: string;
+        signingIn: string;
+        goDashboard: string;
+        passwordLabel: string;
+    };
+    install: {
+        title: string;
+        intro: string;
+        siteIdTitle: string;
+        siteIdDesc: string;
+        siteIdLabel: string;
+        sanitizedHint: string;
+        workerOrigin: string;
+        htmlTitle: string;
+        htmlDesc: string;
+        moduleTitle: string;
+        moduleDesc: string;
+        copy: string;
+        copied: string;
+        openDashboardSite: string;
+        openDashboardAll: string;
+    };
+    admin: {
+        title: string;
+        intro: string;
+        addTitle: string;
+        addDesc: string;
+        displayName: string;
+        siteId: string;
+        allowedHosts: string;
+        allowedHostsOptional: string;
+        allowedHostsPlaceholder: string;
+        create: string;
+        sitesTitle: string;
+        sitesEmpty: string;
+        sitesCount: string;
+        status: string;
+        actions: string;
+        enabled: string;
+        disabled: string;
+        snippet: string;
+        dashboard: string;
+        edit: string;
+        save: string;
+        cancel: string;
+        delete: string;
+        deleteConfirm: string;
+        cfConsole: string;
+        created: string;
+        updated: string;
+        deleted: string;
+        unknownIntent: string;
+        missingDb: string;
+        missingDbShort: string;
+    };
+    dashboard: {
+        today: string;
+        yesterday: string;
+        hours24: string;
+        days7: string;
+        days30: string;
+        days90: string;
+        unknownSite: string;
+        errorTitle: string;
+        errorMessage: string;
+        errorSuggestion: string;
+        configError: string;
+        missingAccountId: string;
+        missingAccountIdHint: string;
+        missingToken: string;
+        missingTokenHint: string;
+        configIncomplete: string;
+        checkAeConfig: string;
+        serverError: string;
+        serverErrorMsg: string;
+        serverErrorHint: string;
+        httpError: string;
+        aeError: string;
+        aeErrorMsg: string;
+        aeErrorHint: string;
+        authError: string;
+        authErrorHint: string;
+        invalidRange: string;
+        invalidRangeMsg: string;
+        invalidRangeHint: string;
+        appError: string;
+        appErrorMsg: string;
+        tryAgain: string;
+        backDashboard: string;
+        suggestion: string;
+        context: string;
+        site: string;
+        timeRange: string;
+    };
+    common: {
+        langZh: string;
+        langEn: string;
+    };
+};
+
+export type MessageKey = string;

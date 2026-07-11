@@ -11,6 +11,12 @@ import {
     useLoaderData,
 } from "react-router";
 import { getUser, isAuthEnabled } from "~/lib/auth";
+import {
+    htmlLang,
+    resolveLocale,
+    type Locale,
+} from "~/i18n";
+import { LocaleProvider, useLocale } from "~/i18n/LocaleContext";
 
 export const links: LinksFunction = () => [{ rel: "stylesheet", href: styles }];
 
@@ -48,6 +54,10 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
     // specified during deploy via wrangler --var VERSION:value
     const version = context.cloudflare?.env?.VERSION;
     const user = await getUser(request, context.cloudflare.env);
+    const locale = resolveLocale({
+        cookieHeader: request.headers.get("Cookie"),
+        acceptLanguage: request.headers.get("Accept-Language"),
+    });
 
     return {
         version: {
@@ -57,8 +67,46 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
         url: request.url,
         user,
         isAuthEnabled: isAuthEnabled(context.cloudflare.env),
+        locale,
     };
 };
+
+function LanguageSwitcher() {
+    const { locale, setLocale, t } = useLocale();
+
+    return (
+        <div
+            className="ml-2 inline-flex items-center text-sm border border-input rounded-md overflow-hidden"
+            role="group"
+            aria-label="Language"
+        >
+            <button
+                type="button"
+                className={
+                    locale === "zh"
+                        ? "px-2 py-0.5 bg-muted font-semibold"
+                        : "px-2 py-0.5 hover:bg-muted/60"
+                }
+                onClick={() => setLocale("zh")}
+                aria-pressed={locale === "zh"}
+            >
+                {t("common.langZh")}
+            </button>
+            <button
+                type="button"
+                className={
+                    locale === "en"
+                        ? "px-2 py-0.5 bg-muted font-semibold"
+                        : "px-2 py-0.5 hover:bg-muted/60"
+                }
+                onClick={() => setLocale("en")}
+                aria-pressed={locale === "en"}
+            >
+                {t("common.langEn")}
+            </button>
+        </div>
+    );
+}
 
 export const Layout = ({ children = [] }: { children: React.ReactNode }) => {
     const data = useLoaderData<typeof loader>() ?? {
@@ -68,10 +116,13 @@ export const Layout = ({ children = [] }: { children: React.ReactNode }) => {
         },
         origin: "counterscale.dev",
         url: "https://counterscale.dev/",
+        locale: "zh" as Locale,
     };
 
+    const locale = (data as { locale?: Locale }).locale ?? "zh";
+
     return (
-        <html lang="en">
+        <html lang={htmlLang(locale)}>
             <head>
                 <meta charSet="utf-8" />
                 <meta
@@ -80,7 +131,7 @@ export const Layout = ({ children = [] }: { children: React.ReactNode }) => {
                 />
                 <link rel="icon" type="image/x-icon" href="/favicon.png" />
                 <meta name="robots" content="noindex" />
-                
+
                 <meta property="og:url" content={data.url} />
                 <meta property="og:type" content="website" />
                 <meta property="og:title" content="Counterscale" />
@@ -133,6 +184,25 @@ export default function App() {
     const homeUrl = isCounterscaleSubdomain ? "https://counterscale.dev" : "/";
 
     return (
+        <LocaleProvider initialLocale={data.locale}>
+            <AppShell
+                homeUrl={homeUrl}
+                data={data}
+            />
+        </LocaleProvider>
+    );
+}
+
+function AppShell({
+    homeUrl,
+    data,
+}: {
+    homeUrl: string;
+    data: ReturnType<typeof useLoaderData<typeof loader>>;
+}) {
+    const { t } = useLocale();
+
+    return (
         <div className="mt-0 sm:mt-4">
             <header className="border-b-2 mb-8 py-2">
                 <nav className="flex justify-between items-center">
@@ -147,18 +217,22 @@ export default function App() {
                         />
                     </div>
                     <div className="flex items-center font-small font-medium text-md">
-                        <a href="/dashboard">Dashboard</a>
+                        <a href="/dashboard">{t("nav.dashboard")}</a>
                         <a href="/install" className="ml-2">
-                            Install
+                            {t("nav.install")}
                         </a>
-                        <a href="/admin" className="hidden sm:inline-block ml-2">
-                            Admin
+                        <a
+                            href="/admin"
+                            className="hidden sm:inline-block ml-2"
+                        >
+                            {t("nav.admin")}
                         </a>
-                        {(data.user?.authenticated && data.isAuthEnabled) && (
+                        {data.user?.authenticated && data.isAuthEnabled && (
                             <a href="/logout" className="ml-2">
-                                Logout
+                                {t("nav.logout")}
                             </a>
                         )}
+                        <LanguageSwitcher />
                         <a
                             href="https://github.com/Adsryen/counterscale"
                             className="w-6 ml-2"
@@ -180,7 +254,7 @@ export default function App() {
 
             <footer className="py-4 flex justify-end text-s">
                 <div>
-                    Version{" "}
+                    {t("footer.version")}{" "}
                     {data.version ? (
                         <a
                             href={data.version.url as string}

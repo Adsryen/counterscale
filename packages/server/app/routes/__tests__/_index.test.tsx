@@ -7,6 +7,7 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 
 import Index, { loader, action } from "../_index";
 import * as auth from "~/lib/auth";
+import { LocaleProvider } from "~/i18n/LocaleContext";
 
 // Mock isAuthEnabled to control test behavior
 vi.mock("~/lib/auth", async () => {
@@ -16,6 +17,25 @@ vi.mock("~/lib/auth", async () => {
         isAuthEnabled: vi.fn().mockReturnValue(true)
     };
 });
+
+
+function wrap(ui: React.ReactNode) {
+    return <LocaleProvider initialLocale="en">{ui}</LocaleProvider>;
+}
+
+function mockRequestWithForm(formData: FormData | { get: (k: string) => unknown }) {
+    return {
+        formData: vi.fn().mockResolvedValue(formData),
+        headers: {
+            get: (name: string) =>
+                name.toLowerCase() === "cookie"
+                    ? "__counterscale_locale=en"
+                    : name.toLowerCase() === "accept-language"
+                      ? "en"
+                      : null,
+        },
+    } as unknown as Request;
+}
 
 describe("Index route", () => {
     afterEach(() => {
@@ -35,7 +55,7 @@ describe("Index route", () => {
             },
         ]);
 
-        const { container } = render(<RemixStub />);
+        const { container } = render(wrap(<RemixStub />));
 
         // Check if component renders at all
         expect(container).toBeInTheDocument();
@@ -57,7 +77,7 @@ describe("Index route", () => {
     test("renders authenticated state", async () => {
         // Set isAuthEnabled to true for this test
         vi.mocked(auth.isAuthEnabled).mockReturnValue(true);
-        
+
         const RemixStub = createRoutesStub([
             {
                 path: "/",
@@ -66,7 +86,7 @@ describe("Index route", () => {
             },
         ]);
 
-        render(<RemixStub />);
+        render(wrap(<RemixStub />));
 
         await waitFor(() => {
             expect(
@@ -175,9 +195,7 @@ describe("action function", () => {
         vi.mocked(auth.isAuthEnabled).mockReturnValue(true);
         
         const formData = new FormData();
-        const mockRequest = {
-            formData: vi.fn().mockResolvedValue(formData),
-        } as unknown as Request;
+        const mockRequest = mockRequestWithForm(formData);
 
         const mockContext = {
             cloudflare: {
@@ -204,9 +222,7 @@ describe("action function", () => {
         const formData = new FormData();
         formData.set("password", "");
 
-        const mockRequest = {
-            formData: vi.fn().mockResolvedValue(formData),
-        } as unknown as Request;
+        const mockRequest = mockRequestWithForm(formData);
 
         const mockContext = {
             cloudflare: {
@@ -237,9 +253,7 @@ describe("action function", () => {
             get: vi.fn().mockReturnValue(123),
         };
 
-        const mockRequest = {
-            formData: vi.fn().mockResolvedValue(mockFormData),
-        } as unknown as Request;
+        const mockRequest = mockRequestWithForm(mockFormData);
 
         const mockContext = {
             cloudflare: {
@@ -271,9 +285,7 @@ describe("action function", () => {
         const formData = new FormData();
         formData.set("password", "correct-password");
 
-        const mockRequest = {
-            formData: vi.fn().mockResolvedValue(formData),
-        } as unknown as Request;
+        const mockRequest = mockRequestWithForm(formData);
 
         const mockContext = {
             cloudflare: {
@@ -309,9 +321,7 @@ describe("action function", () => {
         const formData = new FormData();
         formData.set("password", "wrong-password");
 
-        const mockRequest = {
-            formData: vi.fn().mockResolvedValue(formData),
-        } as unknown as Request;
+        const mockRequest = mockRequestWithForm(formData);
 
         const mockContext = {
             cloudflare: {
@@ -347,9 +357,7 @@ describe("action function", () => {
         const formData = new FormData();
         formData.set("password", "any-password");
 
-        const mockRequest = {
-            formData: vi.fn().mockResolvedValue(formData),
-        } as unknown as Request;
+        const mockRequest = mockRequestWithForm(formData);
 
         const mockContext = {
             cloudflare: {

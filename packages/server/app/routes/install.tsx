@@ -11,6 +11,7 @@ import {
 } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { requireAuth } from "~/lib/auth";
+import { useLocale } from "~/i18n/LocaleContext";
 
 export const meta: MetaFunction = () => {
     return [
@@ -71,6 +72,7 @@ export default function InstallSnippet() {
         searchParams.get("site") || defaultSiteId || "mysite",
     );
     const [copied, setCopied] = useState<"html" | "module" | null>(null);
+    const { t } = useLocale();
 
     const safeSiteId = sanitizeSiteId(siteId);
 
@@ -109,34 +111,19 @@ export default function InstallSnippet() {
         <div className="max-w-3xl mx-auto space-y-6 mb-12">
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                    Install tracking
+                    {t("install.title")}
                 </h1>
-                <p className="text-gray-600 mt-1">
-                    Generate embed code for your sites. Use a unique{" "}
-                    <code className="bg-muted px-1 rounded">site-id</code> per
-                    property, then open the dashboard after traffic arrives.
-                </p>
+                <p className="text-gray-600 mt-1">{t("install.intro")}</p>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Site ID</CardTitle>
-                    <CardDescription>
-                        Appears as{" "}
-                        <code className="bg-muted px-1 rounded">
-                            data-site-id
-                        </code>{" "}
-                        / tracker{" "}
-                        <code className="bg-muted px-1 rounded">sid</code>.
-                        Letters, numbers,{" "}
-                        <code className="bg-muted px-1 rounded">.</code>{" "}
-                        <code className="bg-muted px-1 rounded">-</code>{" "}
-                        <code className="bg-muted px-1 rounded">_</code> only.
-                    </CardDescription>
+                    <CardTitle>{t("install.siteIdTitle")}</CardTitle>
+                    <CardDescription>{t("install.siteIdDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <label htmlFor="site-id" className="sr-only">
-                        Site ID
+                        {t("install.siteIdLabel")}
                     </label>
                     <input
                         id="site-id"
@@ -149,14 +136,14 @@ export default function InstallSnippet() {
                     />
                     {siteId.trim() && siteId.trim() !== safeSiteId ? (
                         <p className="text-sm text-amber-700 mt-2">
-                            Snippet will use sanitized id:{" "}
+                            {t("install.sanitizedHint")}{" "}
                             <code className="bg-muted px-1 rounded">
                                 {safeSiteId}
                             </code>
                         </p>
                     ) : null}
                     <p className="text-sm text-muted-foreground mt-2">
-                        Worker origin:{" "}
+                        {t("install.workerOrigin")}{" "}
                         <code className="bg-muted px-1 rounded">{origin}</code>
                     </p>
                 </CardContent>
@@ -165,13 +152,9 @@ export default function InstallSnippet() {
             <Card>
                 <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
                     <div>
-                        <CardTitle>HTML script (CDN)</CardTitle>
+                        <CardTitle>{t("install.htmlTitle")}</CardTitle>
                         <CardDescription>
-                            Paste before{" "}
-                            <code className="bg-muted px-1 rounded">
-                                {"</body>"}
-                            </code>{" "}
-                            on any site.
+                            {t("install.htmlDesc")}
                         </CardDescription>
                     </div>
                     <Button
@@ -180,7 +163,9 @@ export default function InstallSnippet() {
                         size="sm"
                         onClick={() => copyText(htmlSnippet, "html")}
                     >
-                        {copied === "html" ? "Copied" : "Copy"}
+                        {copied === "html"
+                            ? t("install.copied")
+                            : t("install.copy")}
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -193,13 +178,9 @@ export default function InstallSnippet() {
             <Card>
                 <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
                     <div>
-                        <CardTitle>JavaScript module</CardTitle>
+                        <CardTitle>{t("install.moduleTitle")}</CardTitle>
                         <CardDescription>
-                            For SPAs. Install{" "}
-                            <code className="bg-muted px-1 rounded">
-                                @counterscale/tracker
-                            </code>{" "}
-                            then call init.
+                            {t("install.moduleDesc")}
                         </CardDescription>
                     </div>
                     <Button
@@ -208,7 +189,9 @@ export default function InstallSnippet() {
                         size="sm"
                         onClick={() => copyText(moduleSnippet, "module")}
                     >
-                        {copied === "module" ? "Copied" : "Copy"}
+                        {copied === "module"
+                            ? t("install.copied")
+                            : t("install.copy")}
                     </Button>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -226,11 +209,11 @@ export default function InstallSnippet() {
                     <a
                         href={`/dashboard?site=${encodeURIComponent(safeSiteId)}`}
                     >
-                        Open dashboard for this site
+                        {t("install.openDashboardSite")}
                     </a>
                 </Button>
                 <Button asChild variant="outline">
-                    <a href="/dashboard">All sites dashboard</a>
+                    <a href="/dashboard">{t("install.openDashboardAll")}</a>
                 </Button>
             </div>
         </div>

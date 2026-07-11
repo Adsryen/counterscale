@@ -20,10 +20,15 @@ import InstallSnippet, {
     sanitizeSiteId,
 } from "../install";
 import { requireAuth } from "~/lib/auth";
+import { LocaleProvider } from "~/i18n/LocaleContext";
 
 vi.mock("~/lib/auth", () => ({
     requireAuth: vi.fn(),
 }));
+
+function wrap(ui: React.ReactNode) {
+    return <LocaleProvider initialLocale="en">{ui}</LocaleProvider>;
+}
 
 describe("install route helpers", () => {
     test("sanitizeSiteId strips unsafe characters", () => {
@@ -105,7 +110,9 @@ describe("install route", () => {
             },
         ]);
 
-        render(<RemixStub initialEntries={["/install"]} />);
+        render(
+            wrap(<RemixStub initialEntries={["/install"]} />),
+        );
 
         await waitFor(() => {
             expect(screen.getByText("Install tracking")).toBeInTheDocument();
@@ -135,7 +142,9 @@ describe("install route", () => {
             },
         ]);
 
-        render(<RemixStub initialEntries={["/install"]} />);
+        render(
+            wrap(<RemixStub initialEntries={["/install"]} />),
+        );
 
         await waitFor(() => {
             expect(screen.getByLabelText("Site ID")).toBeInTheDocument();

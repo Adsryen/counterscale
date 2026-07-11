@@ -22,6 +22,8 @@ import {
     updateSite,
     type Site,
 } from "~/lib/sites";
+import { getMessages, resolveLocale, translate } from "~/i18n";
+import { useLocale } from "~/i18n/LocaleContext";
 
 export const meta: MetaFunction = () => {
     return [
@@ -33,15 +35,23 @@ export const meta: MetaFunction = () => {
     ];
 };
 
+function localeMessages(request: Request) {
+    const locale = resolveLocale({
+        cookieHeader: request.headers.get("Cookie"),
+        acceptLanguage: request.headers.get("Accept-Language"),
+    });
+    return getMessages(locale);
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     await requireAuth(request, context.cloudflare.env);
 
     const db = context.cloudflare.env.DB;
     if (!db) {
-        throw new Response(
-            "Missing D1 binding: DB is not configured. Create a D1 database and add it to wrangler.json.",
-            { status: 501 },
-        );
+        const messages = localeMessages(request);
+        throw new Response(translate(messages, "admin.missingDb"), {
+            status: 501,
+        });
     }
 
     const sites = await listSites(db);
@@ -57,12 +67,13 @@ export async function action({
     context,
 }: ActionFunctionArgs): Promise<ActionData> {
     await requireAuth(request, context.cloudflare.env);
+    const messages = localeMessages(request);
 
     const db = context.cloudflare.env.DB;
     if (!db) {
         return {
             ok: false,
-            error: "Missing D1 binding: DB is not configured.",
+            error: translate(messages, "admin.missingDbShort"),
         };
     }
 
@@ -79,7 +90,12 @@ export async function action({
                 name,
                 allowedHosts: allowedHosts || null,
             });
-            return { ok: true, message: `Created site “${siteId.trim()}”` };
+            return {
+                ok: true,
+                message: translate(messages, "admin.created", {
+                    siteId: siteId.trim(),
+                }),
+            };
         }
 
         if (intent === "update") {
@@ -92,16 +108,25 @@ export async function action({
                 enabled,
                 allowedHosts: allowedHosts || null,
             });
-            return { ok: true, message: `Updated “${siteId}”` };
+            return {
+                ok: true,
+                message: translate(messages, "admin.updated", { siteId }),
+            };
         }
 
         if (intent === "delete") {
             const siteId = String(form.get("siteId") || "");
             await deleteSite(db, siteId);
-            return { ok: true, message: `Deleted “${siteId}”` };
+            return {
+                ok: true,
+                message: translate(messages, "admin.deleted", { siteId }),
+            };
         }
 
-        return { ok: false, error: `Unknown intent: ${intent}` };
+        return {
+            ok: false,
+            error: translate(messages, "admin.unknownIntent", { intent }),
+        };
     } catch (err) {
         const message =
             err instanceof Error ? err.message : "Something went wrong";
@@ -113,6 +138,7 @@ function SiteRow({ site }: { site: Site }) {
     const [editing, setEditing] = useState(false);
     const navigation = useNavigation();
     const busy = navigation.state !== "idle";
+    const { t } = useLocale();
 
     if (editing) {
         return (
@@ -128,7 +154,7 @@ function SiteRow({ site }: { site: Site }) {
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div>
                                 <label className="text-sm font-medium">
-                                    Display name
+                                    {t("admin.displayName")}
                                 </label>
                                 <input
                                     name="name"
@@ -139,7 +165,7 @@ function SiteRow({ site }: { site: Site }) {
                             </div>
                             <div>
                                 <label className="text-sm font-medium">
-                                    Allowed hosts (optional)
+                                    {t("admin.allowedHosts")}
                                 </label>
                                 <input
                                     name="allowedHosts"
@@ -155,11 +181,11 @@ function SiteRow({ site }: { site: Site }) {
                                 name="enabled"
                                 defaultChecked={site.enabled}
                             />
-                            Enabled
+                            {t("admin.enabled")}
                         </label>
                         <div className="flex flex-wrap gap-2">
                             <Button type="submit" size="sm" disabled={busy}>
-                                Save
+                                {t("admin.save")}
                             </Button>
                             <Button
                                 type="button"
@@ -167,7 +193,7 @@ function SiteRow({ site }: { site: Site }) {
                                 variant="outline"
                                 onClick={() => setEditing(false)}
                             >
-                                Cancel
+                                {t("admin.cancel")}
                             </Button>
                         </div>
                     </Form>
@@ -186,9 +212,11 @@ function SiteRow({ site }: { site: Site }) {
             </td>
             <td className="py-3 px-2 text-sm">
                 {site.enabled ? (
-                    <span className="text-green-700">Enabled</span>
+                    <span className="text-green-700">{t("admin.enabled")}</span>
                 ) : (
-                    <span className="text-muted-foreground">Disabled</span>
+                    <span className="text-muted-foreground">
+                        {t("admin.disabled")}
+                    </span>
                 )}
                 {site.allowedHosts ? (
                     <div className="text-xs text-muted-foreground mt-1">
@@ -202,14 +230,14 @@ function SiteRow({ site }: { site: Site }) {
                         <a
                             href={`/install?site=${encodeURIComponent(site.siteId)}`}
                         >
-                            Snippet
+                            {t("admin.snippet")}
                         </a>
                     </Button>
                     <Button asChild size="sm" variant="outline">
                         <a
                             href={`/dashboard?site=${encodeURIComponent(site.siteId)}`}
                         >
-                            Dashboard
+                            {t("admin.dashboard")}
                         </a>
                     </Button>
                     <Button
@@ -218,7 +246,7 @@ function SiteRow({ site }: { site: Site }) {
                         variant="secondary"
                         onClick={() => setEditing(true)}
                     >
-                        Edit
+                        {t("admin.edit")}
                     </Button>
                 </div>
             </td>
@@ -234,14 +262,16 @@ function SiteRow({ site }: { site: Site }) {
                         onClick={(e) => {
                             if (
                                 !window.confirm(
-                                    `Delete site “${site.siteId}”? Analytics data in AE is kept.`,
+                                    t("admin.deleteConfirm", {
+                                        siteId: site.siteId,
+                                    }),
                                 )
                             ) {
                                 e.preventDefault();
                             }
                         }}
                     >
-                        Delete
+                        {t("admin.delete")}
                     </Button>
                 </Form>
             </td>
@@ -254,16 +284,15 @@ export default function AdminSites() {
     const actionData = useActionData<typeof action>();
     const navigation = useNavigation();
     const busy = navigation.state !== "idle";
+    const { t } = useLocale();
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 mb-12">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">Admin</h1>
-                <p className="text-gray-600 mt-1">
-                    Manage site metadata. Pageviews still live in Analytics
-                    Engine; unknown site IDs can still report via{" "}
-                    <code className="bg-muted px-1 rounded">/collect</code>.
-                </p>
+                <h1 className="text-2xl font-bold text-gray-900">
+                    {t("admin.title")}
+                </h1>
+                <p className="text-gray-600 mt-1">{t("admin.intro")}</p>
             </div>
 
             {actionData ? (
@@ -281,14 +310,8 @@ export default function AdminSites() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Add site</CardTitle>
-                    <CardDescription>
-                        siteId becomes{" "}
-                        <code className="bg-muted px-1 rounded">
-                            data-site-id
-                        </code>{" "}
-                        in the embed snippet.
-                    </CardDescription>
+                    <CardTitle>{t("admin.addTitle")}</CardTitle>
+                    <CardDescription>{t("admin.addDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form method="post" className="space-y-3">
@@ -299,7 +322,7 @@ export default function AdminSites() {
                                     htmlFor="create-name"
                                     className="text-sm font-medium"
                                 >
-                                    Display name
+                                    {t("admin.displayName")}
                                 </label>
                                 <input
                                     id="create-name"
@@ -314,7 +337,7 @@ export default function AdminSites() {
                                     htmlFor="create-site-id"
                                     className="text-sm font-medium"
                                 >
-                                    Site ID
+                                    {t("admin.siteId")}
                                 </label>
                                 <input
                                     id="create-site-id"
@@ -332,17 +355,19 @@ export default function AdminSites() {
                                 htmlFor="create-hosts"
                                 className="text-sm font-medium"
                             >
-                                Allowed hosts (optional, informational)
+                                {t("admin.allowedHostsOptional")}
                             </label>
                             <input
                                 id="create-hosts"
                                 name="allowedHosts"
-                                placeholder="blog.example.com"
+                                placeholder={t(
+                                    "admin.allowedHostsPlaceholder",
+                                )}
                                 className="mt-1 w-full px-3 py-2 border border-input rounded-md shadow-sm"
                             />
                         </div>
                         <Button type="submit" disabled={busy}>
-                            Create site
+                            {t("admin.create")}
                         </Button>
                     </Form>
                 </CardContent>
@@ -350,11 +375,11 @@ export default function AdminSites() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Sites</CardTitle>
+                    <CardTitle>{t("admin.sitesTitle")}</CardTitle>
                     <CardDescription>
                         {sites.length === 0
-                            ? "No sites yet — create one above."
-                            : `${sites.length} site(s)`}
+                            ? t("admin.sitesEmpty")
+                            : t("admin.sitesCount", { count: sites.length })}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="overflow-x-auto">
@@ -363,13 +388,13 @@ export default function AdminSites() {
                             <thead>
                                 <tr className="border-b text-muted-foreground">
                                     <th className="py-2 px-2 font-medium">
-                                        Site
+                                        {t("admin.sitesTitle")}
                                     </th>
                                     <th className="py-2 px-2 font-medium">
-                                        Status
+                                        {t("admin.status")}
                                     </th>
                                     <th className="py-2 px-2 font-medium">
-                                        Actions
+                                        {t("admin.actions")}
                                     </th>
                                     <th className="py-2 px-2 font-medium" />
                                 </tr>
@@ -391,7 +416,7 @@ export default function AdminSites() {
                     target="_blank"
                     rel="noreferrer"
                 >
-                    Open Cloudflare Worker console
+                    {t("admin.cfConsole")}
                 </a>
             </div>
         </div>

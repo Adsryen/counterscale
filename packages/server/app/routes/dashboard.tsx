@@ -47,6 +47,7 @@ import SearchFilterBadges from "~/components/SearchFilterBadges";
 import { TimeSeriesCard } from "./resources.timeseries";
 import { StatsCard } from "./resources.stats";
 import { requireAuth } from "~/lib/auth";
+import { useLocale } from "~/i18n/LocaleContext";
 
 export const meta: MetaFunction = () => {
     return [
@@ -138,6 +139,7 @@ export default function Dashboard() {
     const data = useLoaderData<typeof loader>();
     const navigation = useNavigation();
     const loading = navigation.state === "loading";
+    const { t } = useLocale();
 
     function changeSite(site: string) {
         // intentionally not updating prev params; don't want search
@@ -198,7 +200,7 @@ export default function Dashboard() {
                                     key={`k-${siteId}`}
                                     value={siteId || "@unknown"}
                                 >
-                                    {siteId || "(unknown)"}
+                                    {siteId || t("dashboard.unknownSite")}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -214,12 +216,24 @@ export default function Dashboard() {
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="today">Today</SelectItem>
-                            <SelectItem value="yesterday">Yesterday</SelectItem>
-                            <SelectItem value="1d">24 hours</SelectItem>
-                            <SelectItem value="7d">7 days</SelectItem>
-                            <SelectItem value="30d">30 days</SelectItem>
-                            <SelectItem value="90d">90 days</SelectItem>
+                            <SelectItem value="today">
+                                {t("dashboard.today")}
+                            </SelectItem>
+                            <SelectItem value="yesterday">
+                                {t("dashboard.yesterday")}
+                            </SelectItem>
+                            <SelectItem value="1d">
+                                {t("dashboard.hours24")}
+                            </SelectItem>
+                            <SelectItem value="7d">
+                                {t("dashboard.days7")}
+                            </SelectItem>
+                            <SelectItem value="30d">
+                                {t("dashboard.days30")}
+                            </SelectItem>
+                            <SelectItem value="90d">
+                                {t("dashboard.days90")}
+                            </SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -352,15 +366,15 @@ export default function Dashboard() {
 export function ErrorBoundary() {
     const error = useRouteError();
     const [searchParams] = useSearchParams();
+    const { t } = useLocale();
 
     const siteId = searchParams.get("site");
     const interval = searchParams.get("interval") || "7d";
 
     let errorInfo = {
-        title: "Dashboard Error",
-        message: "An unexpected error occurred while loading the dashboard.",
-        suggestion:
-            "Please try refreshing the page or contact support if the issue persists.",
+        title: t("dashboard.errorTitle"),
+        message: t("dashboard.errorMessage"),
+        suggestion: t("dashboard.errorSuggestion"),
         actionable: true,
         showRetry: true,
         showContext: true,
@@ -371,32 +385,28 @@ export function ErrorBoundary() {
             case 501:
                 if (error.data?.includes("CF_ACCOUNT_ID")) {
                     errorInfo = {
-                        title: "Configuration Error",
-                        message: "Missing Cloudflare Account ID configuration.",
-                        suggestion:
-                            "Please ensure CF_ACCOUNT_ID is properly configured in your environment variables.",
+                        title: t("dashboard.configError"),
+                        message: t("dashboard.missingAccountId"),
+                        suggestion: t("dashboard.missingAccountIdHint"),
                         actionable: false,
                         showRetry: false,
                         showContext: false,
                     };
                 } else if (error.data?.includes("CF_BEARER_TOKEN")) {
                     errorInfo = {
-                        title: "Configuration Error",
-                        message:
-                            "Missing Cloudflare Bearer Token configuration.",
-                        suggestion:
-                            "Please ensure CF_BEARER_TOKEN is properly configured in your environment variables.",
+                        title: t("dashboard.configError"),
+                        message: t("dashboard.missingToken"),
+                        suggestion: t("dashboard.missingTokenHint"),
                         actionable: false,
                         showRetry: false,
                         showContext: false,
                     };
                 } else {
                     errorInfo = {
-                        title: `Configuration Error (${error.status})`,
+                        title: `${t("dashboard.configError")} (${error.status})`,
                         message:
-                            error.data || "Server configuration is incomplete.",
-                        suggestion:
-                            "Please check your Cloudflare Analytics Engine configuration.",
+                            error.data || t("dashboard.configIncomplete"),
+                        suggestion: t("dashboard.checkAeConfig"),
                         actionable: false,
                         showRetry: false,
                         showContext: false,
@@ -405,10 +415,9 @@ export function ErrorBoundary() {
                 break;
             case 500:
                 errorInfo = {
-                    title: "Server Error",
-                    message: "The server encountered an internal error.",
-                    suggestion:
-                        "This is likely a temporary issue. Please try again in a few moments.",
+                    title: t("dashboard.serverError"),
+                    message: t("dashboard.serverErrorMsg"),
+                    suggestion: t("dashboard.serverErrorHint"),
                     actionable: true,
                     showRetry: true,
                     showContext: true,
@@ -420,9 +429,8 @@ export function ErrorBoundary() {
                     message:
                         error.data ||
                         error.statusText ||
-                        "An HTTP error occurred.",
-                    suggestion:
-                        "Please try refreshing the page or contact support if the issue persists.",
+                        t("dashboard.httpError"),
+                    suggestion: t("dashboard.errorSuggestion"),
                     actionable: true,
                     showRetry: true,
                     showContext: true,
@@ -431,42 +439,36 @@ export function ErrorBoundary() {
     } else if (error instanceof Error) {
         if (error.message?.includes("Analytics Engine")) {
             errorInfo = {
-                title: "Analytics Engine Error",
-                message: "Failed to connect to Cloudflare Analytics Engine.",
-                suggestion:
-                    "This could be due to network issues or Analytics Engine being temporarily unavailable. Please try again in a few moments.",
+                title: t("dashboard.aeError"),
+                message: t("dashboard.aeErrorMsg"),
+                suggestion: t("dashboard.aeErrorHint"),
                 actionable: true,
                 showRetry: true,
                 showContext: true,
             };
         } else if (error.message?.includes("Authentication")) {
             errorInfo = {
-                title: "Authentication Error",
+                title: t("dashboard.authError"),
                 message: error.message,
-                suggestion:
-                    "Please check your credentials and try logging in again.",
+                suggestion: t("dashboard.authErrorHint"),
                 actionable: true,
                 showRetry: false,
                 showContext: false,
             };
         } else if (error.message?.includes("Invalid interval")) {
             errorInfo = {
-                title: "Invalid Time Range",
-                message: "The selected time interval is not supported.",
-                suggestion:
-                    "Please select a different time range from the dropdown.",
+                title: t("dashboard.invalidRange"),
+                message: t("dashboard.invalidRangeMsg"),
+                suggestion: t("dashboard.invalidRangeHint"),
                 actionable: true,
                 showRetry: false,
                 showContext: true,
             };
         } else {
             errorInfo = {
-                title: "Application Error",
-                message:
-                    error.message ||
-                    "An unexpected application error occurred.",
-                suggestion:
-                    "Please try refreshing the page or contact support if the issue persists.",
+                title: t("dashboard.appError"),
+                message: error.message || t("dashboard.appErrorMsg"),
+                suggestion: t("dashboard.errorSuggestion"),
                 actionable: true,
                 showRetry: true,
                 showContext: true,
@@ -499,26 +501,27 @@ export function ErrorBoundary() {
                 <CardContent className="space-y-4">
                     <div className="bg-muted p-4 rounded-lg">
                         <p className="text-sm text-muted-foreground">
-                            <strong>Suggestion:</strong> {errorInfo.suggestion}
+                            <strong>{t("dashboard.suggestion")}</strong>{" "}
+                            {errorInfo.suggestion}
                         </p>
                     </div>
 
                     {errorInfo.showContext && (siteId || interval !== "7d") && (
                         <div className="bg-muted p-4 rounded-lg">
                             <p className="text-sm text-muted-foreground mb-2">
-                                <strong>Context when error occurred:</strong>
+                                <strong>{t("dashboard.context")}</strong>
                             </p>
                             <ul className="text-sm text-muted-foreground space-y-1">
                                 {siteId && (
                                     <li>
-                                        • Site:{" "}
+                                        • {t("dashboard.site")}{" "}
                                         <code className="bg-background px-1 rounded">
                                             {siteId}
                                         </code>
                                     </li>
                                 )}
                                 <li>
-                                    • Time Range:{" "}
+                                    • {t("dashboard.timeRange")}{" "}
                                     <code className="bg-background px-1 rounded">
                                         {interval}
                                     </code>
@@ -534,7 +537,7 @@ export function ErrorBoundary() {
                                     onClick={handleRetry}
                                     className="flex-1"
                                 >
-                                    Try Again
+                                    {t("dashboard.tryAgain")}
                                 </Button>
                             )}
                             <Button
@@ -542,7 +545,7 @@ export function ErrorBoundary() {
                                 onClick={handleGoHome}
                                 className="flex-1"
                             >
-                                Back to Dashboard
+                                {t("dashboard.backDashboard")}
                             </Button>
                         </CardFooter>
                     )}
