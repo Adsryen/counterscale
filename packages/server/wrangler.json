@@ -34,5 +34,11 @@
             "database_id": "63a56a11-4de0-404a-af96-21e03995cc78",
             "migrations_dir": "./migrations"
         }
+    ],
+    "routes": [
+        {
+            "pattern": "pv.we-together.club",
+            "custom_domain": true
+        }
     ]
 }
