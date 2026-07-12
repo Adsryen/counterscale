@@ -186,6 +186,11 @@ export type Messages = {
             codeDesc: string;
             analyticsTitle: string;
             analyticsDesc: string;
+            discoveredBadge: string;
+            discoveredHint: string;
+            import: string;
+            hits90d: string;
+            listSummary: string;
             emptyHint: string;
             backList: string;
         };

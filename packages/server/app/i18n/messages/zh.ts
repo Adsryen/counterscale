@@ -191,6 +191,12 @@ export const zh: Messages = {
             codeDesc: "复制 HTML 或 npm 片段，粘贴到你的站点。",
             analyticsTitle: "访问分析",
             analyticsDesc: "查看 PV、趋势、来源与终端等报表。",
+
+            discoveredBadge: "流量发现",
+            discoveredHint: "有 {count} 个站点仅在访问数据中出现，尚未加入名册。可点「加入名册」后管理显示名称与取码。",
+            import: "加入名册",
+            hits90d: "近 90 天约 {count} 次",
+            listSummary: "共 {total} 个（名册 {registry} · 流量发现 {discovered}）",
             emptyHint: "创建站点后，可获取代码并查看分析。",
             backList: "返回站点列表",
         },

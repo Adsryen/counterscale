@@ -198,6 +198,12 @@ export const en: Messages = {
             codeDesc: "Copy the HTML or npm snippet for this site.",
             analyticsTitle: "Analytics",
             analyticsDesc: "Views, trends, referrers, devices, and more.",
+
+            discoveredBadge: "From traffic",
+            discoveredHint: "{count} site(s) appear in analytics only. Click Add to registry to manage names and code.",
+            import: "Add to registry",
+            hits90d: "~{count} hits (90d)",
+            listSummary: "{total} total ({registry} registry · {discovered} discovered)",
             emptyHint: "After creating a site, get the code and open analytics.",
             backList: "Back to sites",
         },

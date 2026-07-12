@@ -3,7 +3,13 @@ import type {
     LoaderFunctionArgs,
     MetaFunction,
 } from "react-router";
-import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
+import {
+    Form,
+    redirect,
+    useActionData,
+    useLoaderData,
+    useNavigation,
+} from "react-router";
 import { useState } from "react";
 
 import {
@@ -35,6 +41,20 @@ export const meta: MetaFunction = () => {
     ];
 };
 
+/** Registry site or AE-discovered siteId without D1 row yet. */
+export type SiteListItem = {
+    siteId: string;
+    name: string;
+    enabled: boolean;
+    allowedHosts: string | null;
+    createdAt: string;
+    updatedAt: string;
+    /** true = row in D1; false = only seen in Analytics Engine traffic */
+    inRegistry: boolean;
+    /** approximate hits last 90d from AE ranking (if known) */
+    hits90d: number | null;
+};
+
 function localeMessages(request: Request) {
     const locale = resolveLocale({
         cookieHeader: request.headers.get("Cookie"),
@@ -54,8 +74,66 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         });
     }
 
-    const sites = await listSites(db);
-    return { sites };
+    const registry = await listSites(db);
+
+    let aeSites: [string, number][] = [];
+    try {
+        if (
+            context.cloudflare.env.CF_ACCOUNT_ID &&
+            context.cloudflare.env.CF_BEARER_TOKEN
+        ) {
+            // Match public dashboard retention window for discovery
+            aeSites = await context.analyticsEngine.getSitesOrderedByHits("90d");
+        }
+    } catch (err) {
+        console.error("sites list AE discovery failed", err);
+    }
+
+    const regMap = new Map(registry.map((s) => [s.siteId, s]));
+    const aeMap = new Map(
+        aeSites.filter(([id]) => !!id).map(([id, hits]) => [id, hits]),
+    );
+
+    const items: SiteListItem[] = [];
+
+    // 1) All D1 registry sites first (manageable)
+    for (const s of registry) {
+        items.push({
+            ...s,
+            inRegistry: true,
+            hits90d: aeMap.get(s.siteId) ?? null,
+        });
+    }
+
+    // 2) AE-only siteIds (have traffic but never added to registry)
+    for (const [siteId, hits] of aeMap) {
+        if (regMap.has(siteId)) continue;
+        items.push({
+            siteId,
+            name: siteId,
+            enabled: true,
+            allowedHosts: null,
+            createdAt: "",
+            updatedAt: "",
+            inRegistry: false,
+            hits90d: hits,
+        });
+    }
+
+    // Sort: registry first, then by hits desc, then name
+    items.sort((a, b) => {
+        if (a.inRegistry !== b.inRegistry) return a.inRegistry ? -1 : 1;
+        const ha = a.hits90d ?? -1;
+        const hb = b.hits90d ?? -1;
+        if (ha !== hb) return hb - ha;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
+
+    return {
+        sites: items,
+        registryCount: registry.length,
+        discoveredCount: items.filter((s) => !s.inRegistry).length,
+    };
 }
 
 type ActionData =
@@ -81,16 +159,16 @@ export async function action({
     const intent = String(form.get("intent") || "");
 
     try {
-        if (intent === "create") {
+        if (intent === "create" || intent === "import") {
             const siteId = String(form.get("siteId") || "");
-            const name = String(form.get("name") || "");
+            const name = String(form.get("name") || siteId || "");
             const allowedHosts = String(form.get("allowedHosts") || "");
             const created = await createSite(db, {
                 siteId,
-                name,
+                name: name.trim() || siteId,
                 allowedHosts: allowedHosts || null,
             });
-            // Chinese PV flow: create site → land on hub with CTA to install code
+            // Chinese PV flow: create/import → hub with CTA to install code
             throw redirect(
                 `/console/sites/${encodeURIComponent(created.siteId)}?created=1`,
             );
@@ -136,11 +214,74 @@ export async function action({
     }
 }
 
-function SiteRow({ site }: { site: Site }) {
+function SiteRow({ site }: { site: SiteListItem }) {
     const [editing, setEditing] = useState(false);
     const navigation = useNavigation();
     const busy = navigation.state !== "idle";
     const { t } = useLocale();
+
+    // AE-discovered only: offer import into registry
+    if (!site.inRegistry) {
+        return (
+            <tr className="border-b bg-muted/20">
+                <td className="py-3 px-2">
+                    <div className="font-medium">{site.name}</div>
+                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        <code className="text-xs bg-muted px-1 rounded">
+                            {site.siteId}
+                        </code>
+                        <span className="text-xs text-amber-700 dark:text-amber-400">
+                            {t("console.site.discoveredBadge")}
+                        </span>
+                    </div>
+                </td>
+                <td className="py-3 px-2 text-sm text-muted-foreground">
+                    {site.hits90d != null
+                        ? t("console.site.hits90d", { count: site.hits90d })
+                        : "—"}
+                </td>
+                <td className="py-3 px-2" colSpan={2}>
+                    <div className="flex flex-wrap gap-2">
+                        <Form method="post">
+                            <input type="hidden" name="intent" value="import" />
+                            <input
+                                type="hidden"
+                                name="siteId"
+                                value={site.siteId}
+                            />
+                            <input
+                                type="hidden"
+                                name="name"
+                                value={site.siteId}
+                            />
+                            <Button
+                                type="submit"
+                                size="sm"
+                                className="rounded-xl"
+                                disabled={busy}
+                            >
+                                {t("console.site.import")}
+                            </Button>
+                        </Form>
+                        <Button asChild size="sm" variant="outline" className="rounded-xl">
+                            <a
+                                href={`/console/sites/${encodeURIComponent(site.siteId)}/analytics`}
+                            >
+                                {t("admin.dashboard")}
+                            </a>
+                        </Button>
+                        <Button asChild size="sm" variant="outline" className="rounded-xl">
+                            <a
+                                href={`/console/sites/${encodeURIComponent(site.siteId)}/code`}
+                            >
+                                {t("admin.snippet")}
+                            </a>
+                        </Button>
+                    </div>
+                </td>
+            </tr>
+        );
+    }
 
     if (editing) {
         return (
@@ -221,7 +362,9 @@ function SiteRow({ site }: { site: Site }) {
             </td>
             <td className="py-3 px-2 text-sm">
                 {site.enabled ? (
-                    <span className="text-emerald-600 dark:text-emerald-400">{t("admin.enabled")}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                        {t("admin.enabled")}
+                    </span>
                 ) : (
                     <span className="text-muted-foreground">
                         {t("admin.disabled")}
@@ -242,14 +385,24 @@ function SiteRow({ site }: { site: Site }) {
                             {t("admin.snippet")}
                         </a>
                     </Button>
-                    <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl"
+                    >
                         <a
                             href={`/console/sites/${encodeURIComponent(site.siteId)}/analytics`}
                         >
                             {t("admin.dashboard")}
                         </a>
                     </Button>
-                    <Button asChild size="sm" variant="outline" className="rounded-xl">
+                    <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl"
+                    >
                         <a
                             href={`/console/sites/${encodeURIComponent(site.siteId)}`}
                         >
@@ -297,7 +450,8 @@ function SiteRow({ site }: { site: Site }) {
 }
 
 export default function AdminSites() {
-    const { sites } = useLoaderData<typeof loader>();
+    const { sites, registryCount, discoveredCount } =
+        useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const navigation = useNavigation();
     const busy = navigation.state !== "idle";
@@ -322,6 +476,17 @@ export default function AdminSites() {
                     role="status"
                 >
                     {actionData.ok ? actionData.message : actionData.error}
+                </div>
+            ) : null}
+
+            {discoveredCount > 0 ? (
+                <div
+                    className="rounded-2xl border border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100 px-4 py-3 text-sm"
+                    role="status"
+                >
+                    {t("console.site.discoveredHint", {
+                        count: discoveredCount,
+                    })}
                 </div>
             ) : null}
 
@@ -383,7 +548,11 @@ export default function AdminSites() {
                                 className="mt-1 w-full px-3 py-2 border border-input rounded-md shadow-sm"
                             />
                         </div>
-                        <Button type="submit" disabled={busy} className="rounded-xl">
+                        <Button
+                            type="submit"
+                            disabled={busy}
+                            className="rounded-xl"
+                        >
                             {t("admin.create")}
                         </Button>
                     </Form>
@@ -396,7 +565,11 @@ export default function AdminSites() {
                     <CardDescription>
                         {sites.length === 0
                             ? t("admin.sitesEmpty")
-                            : t("admin.sitesCount", { count: sites.length })}
+                            : t("console.site.listSummary", {
+                                  total: sites.length,
+                                  registry: registryCount,
+                                  discovered: discoveredCount,
+                              })}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="overflow-x-auto">
