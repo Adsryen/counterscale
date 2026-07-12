@@ -139,6 +139,7 @@ export const zh: Messages = {
         context: "出错时的上下文：",
         site: "站点：",
         timeRange: "时间范围：",
+        delayHint: "若刚安装埋点，数据通常 1–2 分钟后出现；请确认站点选择为正确的 site-id（例如 rr），并刷新页面。",
     },
     common: {
         langZh: "中文",
@@ -207,6 +208,9 @@ export const zh: Messages = {
             listSummary: "共 {total} 个（名册 {registry} · 流量发现 {discovered}）",
             emptyHint: "创建站点后，可获取代码并查看分析。",
             backList: "返回站点列表",
+            snippetDelayHint: "安装后刷新被统计站点，再打开仪表盘查看。Analytics Engine 通常 1–2 分钟内可见，偶发更久。",
+            openFullCode: "打开完整页面",
+            closeSnippet: "完成",
         },
         settings: {
             title: "设置",

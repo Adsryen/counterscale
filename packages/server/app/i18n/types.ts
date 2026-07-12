@@ -136,6 +136,7 @@ export type Messages = {
         context: string;
         site: string;
         timeRange: string;
+        delayHint: string;
     };
     metrics: {
         uv: string;
@@ -201,6 +202,9 @@ export type Messages = {
             listSummary: string;
             emptyHint: string;
             backList: string;
+            closeSnippet: string;
+            openFullCode: string;
+            snippetDelayHint: string;
         };
         settings: {
             title: string;

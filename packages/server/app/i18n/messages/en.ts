@@ -146,6 +146,7 @@ export const en: Messages = {
         context: "Context when error occurred:",
         site: "Site:",
         timeRange: "Time Range:",
+        delayHint: "New installs usually appear within 1–2 minutes. Confirm the correct site-id is selected, then refresh.",
     },
     common: {
         langZh: "中文",
@@ -214,6 +215,9 @@ export const en: Messages = {
             listSummary: "{total} total ({registry} registry · {discovered} discovered)",
             emptyHint: "After creating a site, get the code and open analytics.",
             backList: "Back to sites",
+            snippetDelayHint: "After install, refresh the tracked site, then open the dashboard. Analytics Engine usually shows hits within 1–2 minutes.",
+            openFullCode: "Open full page",
+            closeSnippet: "Done",
         },
         settings: {
             title: "Settings",

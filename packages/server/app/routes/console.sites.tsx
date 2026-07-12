@@ -20,6 +20,7 @@ import {
     CardTitle,
 } from "~/components/ui/card";
 import { Button, buttonVariants } from "~/components/ui/button";
+import { SnippetModal } from "~/components/SnippetModal";
 import { requireAuth } from "~/lib/auth";
 import {
     createSite,
@@ -99,6 +100,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     }
 
     const registry = await listSites(db);
+    const origin = new URL(request.url).origin;
 
     let aeSites: [string, number][] = [];
     try {
@@ -154,6 +156,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         sites: items,
         registryCount: registry.length,
         discoveredCount: items.filter((s) => !s.inRegistry).length,
+        origin,
     };
 }
 
@@ -242,14 +245,19 @@ export async function action({
     }
 }
 
-function SiteRow({ site }: { site: SiteListItem }) {
+function SiteRow({
+    site,
+    onOpenSnippet,
+}: {
+    site: SiteListItem;
+    onOpenSnippet: (siteId: string) => void;
+}) {
     const [editing, setEditing] = useState(false);
     const navigation = useNavigation();
     // Only disable the form that is submitting, not every button on the page
     const submitting = navigation.state === "submitting";
     const { t } = useLocale();
 
-    const codeHref = `/console/sites/${encodeURIComponent(site.siteId)}/code`;
     const analyticsHref = `/console/sites/${encodeURIComponent(site.siteId)}/analytics`;
     const hubHref = `/console/sites/${encodeURIComponent(site.siteId)}`;
     const publicDashHref = `/dashboard?site=${encodeURIComponent(site.siteId)}`;
@@ -300,9 +308,14 @@ function SiteRow({ site }: { site: SiteListItem }) {
                                 {t("console.site.import")}
                             </Button>
                         </Form>
-                        <ActionLink href={codeHref} variant="default">
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() => onOpenSnippet(site.siteId)}
+                        >
                             {t("admin.snippet")}
-                        </ActionLink>
+                        </Button>
                         <ActionLink href={publicDashHref}>
                             {t("admin.dashboard")}
                         </ActionLink>
@@ -430,9 +443,14 @@ function SiteRow({ site }: { site: SiteListItem }) {
             </td>
             <td className="py-3 px-2 align-top">
                 <div className="flex flex-wrap gap-2">
-                    <ActionLink href={codeHref} variant="default">
+                    <Button
+                        type="button"
+                        size="sm"
+                        className="rounded-xl"
+                        onClick={() => onOpenSnippet(site.siteId)}
+                    >
                         {t("admin.snippet")}
-                    </ActionLink>
+                    </Button>
                     <ActionLink href={publicDashHref}>
                         {t("admin.dashboard")}
                     </ActionLink>
@@ -484,15 +502,22 @@ function SiteRow({ site }: { site: SiteListItem }) {
 }
 
 export default function AdminSites() {
-    const { sites, registryCount, discoveredCount } =
+    const { sites, registryCount, discoveredCount, origin } =
         useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const navigation = useNavigation();
     const submitting = navigation.state === "submitting";
     const { t } = useLocale();
+    const [snippetSiteId, setSnippetSiteId] = useState<string | null>(null);
 
     return (
         <div className="max-w-5xl space-y-6">
+            <SnippetModal
+                open={!!snippetSiteId}
+                siteId={snippetSiteId || ""}
+                origin={origin}
+                onClose={() => setSnippetSiteId(null)}
+            />
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">
                     {t("admin.title")}
@@ -640,7 +665,11 @@ export default function AdminSites() {
                             </thead>
                             <tbody>
                                 {sites.map((site) => (
-                                    <SiteRow key={site.siteId} site={site} />
+                                    <SiteRow
+                                        key={site.siteId}
+                                        site={site}
+                                        onOpenSnippet={setSnippetSiteId}
+                                    />
                                 ))}
                             </tbody>
                         </table>

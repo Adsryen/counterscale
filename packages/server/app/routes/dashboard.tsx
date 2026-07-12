@@ -213,6 +213,9 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground">
                     {t("home.dashboardHint")}
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                    {t("dashboard.delayHint")}
+                </p>
             </div>
             <div className="w-full mb-2 flex gap-4 flex-wrap items-center">
                 <div className="lg:basis-1/5-gap-4 sm:basis-1/4-gap-4 basis-1/2-gap-4">
