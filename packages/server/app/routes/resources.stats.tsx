@@ -9,9 +9,20 @@ import { useFetcher } from "react-router";
 import { Card } from "~/components/ui/card";
 import { SearchFilters } from "~/lib/types";
 import { useLocale } from "~/i18n/LocaleContext";
+import { assertCanViewSiteStats } from "~/lib/siteAccess";
 
 export async function loader({ context, request }: LoaderFunctionArgs) {
     const { analyticsEngine } = context;
+    const urlForSite = new URL(request.url);
+    const siteForAccess =
+        urlForSite.searchParams.get("site") ||
+        paramsFromUrl(request.url).site ||
+        "";
+    await assertCanViewSiteStats(
+        request,
+        context.cloudflare.env,
+        siteForAccess === "@unknown" ? "" : siteForAccess,
+    );
     const { interval, site } = paramsFromUrl(request.url);
     const url = new URL(request.url);
     const tz = url.searchParams.get("timezone") || "UTC";

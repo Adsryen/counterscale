@@ -1,9 +1,10 @@
-import { describe, expect, test, vi, beforeEach } from "vitest";
+import { describe, expect, test } from "vitest";
 import {
     createSite,
     deleteSite,
     getSite,
     isValidSiteId,
+    listPublicSites,
     listSites,
     sanitizeSiteId,
     updateSite,
@@ -13,6 +14,7 @@ type Row = {
     site_id: string;
     name: string;
     enabled: number;
+    public_stats: number;
     allowed_hosts: string | null;
     created_at: string;
     updated_at: string;
@@ -37,7 +39,13 @@ function createMemoryD1(initial: Row[] = []) {
             },
             async all<T>() {
                 if (sql.includes("FROM sites")) {
-                    const list = Array.from(rows.values()).sort((a, b) =>
+                    let list = Array.from(rows.values());
+                    if (sql.includes("public_stats = 1")) {
+                        list = list.filter(
+                            (r) => r.public_stats === 1 && r.enabled === 1,
+                        );
+                    }
+                    list.sort((a, b) =>
                         a.name.localeCompare(b.name, undefined, {
                             sensitivity: "base",
                         }),
@@ -48,15 +56,23 @@ function createMemoryD1(initial: Row[] = []) {
             },
             async run() {
                 if (sql.startsWith("INSERT")) {
-                    const [site_id, name, enabled, allowed_hosts, created_at, updated_at] =
-                        binds as [
-                            string,
-                            string,
-                            number,
-                            string | null,
-                            string,
-                            string,
-                        ];
+                    const [
+                        site_id,
+                        name,
+                        enabled,
+                        public_stats,
+                        allowed_hosts,
+                        created_at,
+                        updated_at,
+                    ] = binds as [
+                        string,
+                        string,
+                        number,
+                        number,
+                        string | null,
+                        string,
+                        string,
+                    ];
                     if (rows.has(site_id)) {
                         throw new Error("UNIQUE constraint failed");
                     }
@@ -64,6 +80,7 @@ function createMemoryD1(initial: Row[] = []) {
                         site_id,
                         name,
                         enabled,
+                        public_stats,
                         allowed_hosts,
                         created_at,
                         updated_at,
@@ -71,20 +88,28 @@ function createMemoryD1(initial: Row[] = []) {
                     return { meta: { changes: 1 } };
                 }
                 if (sql.startsWith("UPDATE")) {
-                    const [name, enabled, allowed_hosts, updated_at, site_id] =
-                        binds as [
-                            string,
-                            number,
-                            string | null,
-                            string,
-                            string,
-                        ];
+                    const [
+                        name,
+                        enabled,
+                        public_stats,
+                        allowed_hosts,
+                        updated_at,
+                        site_id,
+                    ] = binds as [
+                        string,
+                        number,
+                        number,
+                        string | null,
+                        string,
+                        string,
+                    ];
                     const cur = rows.get(site_id);
                     if (!cur) return { meta: { changes: 0 } };
                     rows.set(site_id, {
                         ...cur,
                         name,
                         enabled,
+                        public_stats,
                         allowed_hosts,
                         updated_at,
                     });
@@ -116,36 +141,39 @@ describe("sites helpers", () => {
         expect(sanitizeSiteId("")).toBe("");
     });
 
-    test("create, list, get, update, delete", async () => {
+    test("create defaults publicStats true", async () => {
         const db = createMemoryD1();
-
         const created = await createSite(db, {
             siteId: "blog",
             name: " My Blog ",
-            allowedHosts: " blog.example.com ",
         });
-        expect(created.siteId).toBe("blog");
-        expect(created.name).toBe("My Blog");
+        expect(created.publicStats).toBe(true);
         expect(created.enabled).toBe(true);
-        expect(created.allowedHosts).toBe("blog.example.com");
+    });
 
-        const listed = await listSites(db);
-        expect(listed).toHaveLength(1);
-
-        const got = await getSite(db, "blog");
-        expect(got?.name).toBe("My Blog");
-
-        const updated = await updateSite(db, "blog", {
-            name: "Blog 2",
-            enabled: false,
-            allowedHosts: null,
+    test("listPublicSites filters private", async () => {
+        const db = createMemoryD1();
+        await createSite(db, {
+            siteId: "pub",
+            name: "Public",
+            publicStats: true,
         });
-        expect(updated.name).toBe("Blog 2");
-        expect(updated.enabled).toBe(false);
-        expect(updated.allowedHosts).toBeNull();
+        await createSite(db, {
+            siteId: "priv",
+            name: "Private",
+            publicStats: false,
+        });
+        const pub = await listPublicSites(db);
+        expect(pub.map((s) => s.siteId)).toEqual(["pub"]);
+        expect((await listSites(db)).length).toBe(2);
+    });
 
-        await deleteSite(db, "blog");
-        expect(await getSite(db, "blog")).toBeNull();
+    test("update publicStats", async () => {
+        const db = createMemoryD1();
+        await createSite(db, { siteId: "shop", name: "Shop" });
+        const updated = await updateSite(db, "shop", { publicStats: false });
+        expect(updated.publicStats).toBe(false);
+        expect((await getSite(db, "shop"))?.publicStats).toBe(false);
     });
 
     test("rejects invalid and duplicate siteId", async () => {

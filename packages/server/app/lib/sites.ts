@@ -2,6 +2,8 @@ export type Site = {
     siteId: string;
     name: string;
     enabled: boolean;
+    /** When true, anonymous users may view this site on /dashboard */
+    publicStats: boolean;
     allowedHosts: string | null;
     createdAt: string;
     updatedAt: string;
@@ -11,12 +13,14 @@ export type SiteInput = {
     siteId: string;
     name: string;
     enabled?: boolean;
+    publicStats?: boolean;
     allowedHosts?: string | null;
 };
 
 export type SitePatch = {
     name?: string;
     enabled?: boolean;
+    publicStats?: boolean;
     allowedHosts?: string | null;
 };
 
@@ -24,6 +28,7 @@ type SiteRow = {
     site_id: string;
     name: string;
     enabled: number;
+    public_stats?: number | null;
     allowed_hosts: string | null;
     created_at: string;
     updated_at: string;
@@ -45,6 +50,10 @@ function rowToSite(row: SiteRow): Site {
         siteId: row.site_id,
         name: row.name,
         enabled: row.enabled === 1,
+        // Default public when column missing (pre-migration rows)
+        publicStats: row.public_stats === undefined || row.public_stats === null
+            ? true
+            : row.public_stats === 1,
         allowedHosts: row.allowed_hosts,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -55,11 +64,25 @@ function nowIso(): string {
     return new Date().toISOString();
 }
 
+const SITE_SELECT = `SELECT site_id, name, enabled, public_stats, allowed_hosts, created_at, updated_at
+             FROM sites`;
+
 export async function listSites(db: D1Database): Promise<Site[]> {
     const result = await db
         .prepare(
-            `SELECT site_id, name, enabled, allowed_hosts, created_at, updated_at
-             FROM sites
+            `${SITE_SELECT}
+             ORDER BY name COLLATE NOCASE ASC`,
+        )
+        .all<SiteRow>();
+
+    return (result.results ?? []).map(rowToSite);
+}
+
+export async function listPublicSites(db: D1Database): Promise<Site[]> {
+    const result = await db
+        .prepare(
+            `${SITE_SELECT}
+             WHERE public_stats = 1 AND enabled = 1
              ORDER BY name COLLATE NOCASE ASC`,
         )
         .all<SiteRow>();
@@ -72,10 +95,7 @@ export async function getSite(
     siteId: string,
 ): Promise<Site | null> {
     const row = await db
-        .prepare(
-            `SELECT site_id, name, enabled, allowed_hosts, created_at, updated_at
-             FROM sites WHERE site_id = ?`,
-        )
+        .prepare(`${SITE_SELECT} WHERE site_id = ?`)
         .bind(siteId)
         .first<SiteRow>();
 
@@ -106,6 +126,8 @@ export async function createSite(
 
     const ts = nowIso();
     const enabled = input.enabled === false ? 0 : 1;
+    // Default: public (anonymous dashboard), matching upstream open analytics
+    const publicStats = input.publicStats === false ? 0 : 1;
     const allowedHosts =
         input.allowedHosts === undefined || input.allowedHosts === null
             ? null
@@ -113,10 +135,10 @@ export async function createSite(
 
     await db
         .prepare(
-            `INSERT INTO sites (site_id, name, enabled, allowed_hosts, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO sites (site_id, name, enabled, public_stats, allowed_hosts, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
-        .bind(siteId, name, enabled, allowedHosts, ts, ts)
+        .bind(siteId, name, enabled, publicStats, allowedHosts, ts, ts)
         .run();
 
     const created = await getSite(db, siteId);
@@ -144,6 +166,10 @@ export async function updateSite(
 
     const enabled =
         patch.enabled !== undefined ? patch.enabled : current.enabled;
+    const publicStats =
+        patch.publicStats !== undefined
+            ? patch.publicStats
+            : current.publicStats;
     const allowedHosts =
         patch.allowedHosts !== undefined
             ? patch.allowedHosts === null
@@ -155,10 +181,17 @@ export async function updateSite(
     await db
         .prepare(
             `UPDATE sites
-             SET name = ?, enabled = ?, allowed_hosts = ?, updated_at = ?
+             SET name = ?, enabled = ?, public_stats = ?, allowed_hosts = ?, updated_at = ?
              WHERE site_id = ?`,
         )
-        .bind(name, enabled ? 1 : 0, allowedHosts, ts, siteId)
+        .bind(
+            name,
+            enabled ? 1 : 0,
+            publicStats ? 1 : 0,
+            allowedHosts,
+            ts,
+            siteId,
+        )
         .run();
 
     const updated = await getSite(db, siteId);

@@ -75,6 +75,10 @@ export type Messages = {
         status: string;
         actions: string;
         enabled: string;
+        publicStats: string;
+        publicStatsHelp: string;
+        publicStatsOn: string;
+        publicStatsOff: string;
         disabled: string;
         snippet: string;
         dashboard: string;
@@ -99,6 +103,9 @@ export type Messages = {
         days30: string;
         days90: string;
         unknownSite: string;
+        privateTitle: string;
+        privateMessage: string;
+        privateSuggestion: string;
         errorTitle: string;
         errorMessage: string;
         errorSuggestion: string;

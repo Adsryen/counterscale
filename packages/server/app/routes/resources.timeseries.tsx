@@ -11,6 +11,7 @@ import { Card, CardContent } from "~/components/ui/card";
 import TimeSeriesChart from "~/components/TimeSeriesChart";
 import { SearchFilters } from "~/lib/types";
 import type { ViewsGroupedByInterval } from "~/analytics/query";
+import { assertCanViewSiteStats } from "~/lib/siteAccess";
 
 export async function loader({
     context,
@@ -18,6 +19,16 @@ export async function loader({
 }: LoaderFunctionArgs) {
 
     const { analyticsEngine } = context;
+    const urlForSite = new URL(request.url);
+    const siteForAccess =
+        urlForSite.searchParams.get("site") ||
+        paramsFromUrl(request.url).site ||
+        "";
+    await assertCanViewSiteStats(
+        request,
+        context.cloudflare.env,
+        siteForAccess === "@unknown" ? "" : siteForAccess,
+    );
     const { interval, site } = paramsFromUrl(request.url);
     const url = new URL(request.url);
     const tz = url.searchParams.get("timezone") || "UTC";

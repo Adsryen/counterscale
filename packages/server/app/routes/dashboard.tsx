@@ -48,6 +48,9 @@ import SearchFilterBadges from "~/components/SearchFilterBadges";
 import { TimeSeriesCard } from "./resources.timeseries";
 import { StatsCard } from "./resources.stats";
 import { useLocale } from "~/i18n/LocaleContext";
+import { getUser, isAuthEnabled } from "~/lib/auth";
+import { listPublicSites, listSites } from "~/lib/sites";
+import { canViewSiteStats } from "~/lib/siteAccess";
 
 export const meta: MetaFunction = () => {
     return [
@@ -71,7 +74,7 @@ export const loader = async ({ context, request, params }: LoaderFunctionArgs) =
         });
     }
     const { analyticsEngine } = context;
-
+    const env = context.cloudflare.env;
     const url = new URL(request.url);
 
     let interval;
@@ -81,11 +84,48 @@ export const loader = async ({ context, request, params }: LoaderFunctionArgs) =
         interval = "7d";
     }
 
-    // Public dashboard: pick busiest site when none specified (upstream behavior)
+    const user = await getUser(request, env);
+    const authed = !isAuthEnabled(env) || user.authenticated;
+
+    // Build site dropdown list
+    let candidateIds: string[] = [];
+    try {
+        const sitesByHits = await analyticsEngine.getSitesOrderedByHits(
+            `${MAX_RETENTION_DAYS}d`,
+        );
+        candidateIds = sitesByHits.map(([site]) => site).filter(Boolean);
+    } catch (err) {
+        console.error(err);
+        throw new Error("Failed to fetch data from Analytics Engine");
+    }
+
+    // Anonymous: only sites marked public (or not in registry). Operators: all AE sites.
+    let visibleSites: string[] = [];
+    if (authed) {
+        visibleSites = candidateIds;
+    } else if (env.DB) {
+        const allReg = await listSites(env.DB);
+        const privateSet = new Set(
+            allReg.filter((s) => !s.publicStats).map((s) => s.siteId),
+        );
+        const publicSet = new Set(
+            allReg.filter((s) => s.publicStats).map((s) => s.siteId),
+        );
+        // AE candidates that are not private
+        for (const id of candidateIds) {
+            if (!privateSet.has(id)) visibleSites.push(id);
+        }
+        // Public registry sites with no recent AE hits
+        for (const id of publicSet) {
+            if (!visibleSites.includes(id)) visibleSites.push(id);
+        }
+    } else {
+        visibleSites = candidateIds;
+    }
+
+    // Public dashboard: pick first visible site when none specified
     if (url.searchParams.has("site") === false) {
-        const sitesByHits =
-            await analyticsEngine.getSitesOrderedByHits(interval);
-        const redirectSite = sitesByHits[0]?.[0] || "";
+        const redirectSite = visibleSites[0] || "";
         const redirectUrl = new URL(request.url);
         redirectUrl.searchParams.set("site", redirectSite);
         throw redirect(redirectUrl.pathname + redirectUrl.search);
@@ -94,38 +134,29 @@ export const loader = async ({ context, request, params }: LoaderFunctionArgs) =
     const siteId = url.searchParams.get("site") || "";
     const actualSiteId = siteId === "@unknown" ? "" : siteId;
 
-    const filters = getFiltersFromSearchParams(url.searchParams);
-
-    // initiate requests to AE in parallel
-
-    // sites by hits: This is to populate the "sites" dropdown. We query the full retention
-    //                period (90 days) so that any site that has been active in the past 90 days
-    //                will show up in the dropdown.
-    const sitesByHits = analyticsEngine.getSitesOrderedByHits(
-        `${MAX_RETENTION_DAYS}d`,
-    );
-
-    const intervalType = getIntervalType(interval);
-
-    // await all requests to AE then return the results
-
-    let out;
-    try {
-        out = {
-            siteId: actualSiteId,
-            sites: (await sitesByHits).map(
-                ([site, _]: [string, number]) => site,
-            ),
-            intervalType,
-            interval,
-            filters,
-        };
-    } catch (err) {
-        console.error(err);
-        throw new Error("Failed to fetch data from Analytics Engine");
+    if (actualSiteId && !(await canViewSiteStats(request, env, actualSiteId))) {
+        throw new Response(
+            "This site's analytics are private. Please sign in to the console.",
+            { status: 401 },
+        );
     }
 
-    return out;
+    // Ensure current site appears in dropdown if allowed
+    if (actualSiteId && !visibleSites.includes(actualSiteId)) {
+        visibleSites = [actualSiteId, ...visibleSites];
+    }
+
+    const filters = getFiltersFromSearchParams(url.searchParams);
+    const intervalType = getIntervalType(interval);
+
+    return {
+        siteId: actualSiteId,
+        sites: visibleSites,
+        intervalType,
+        interval,
+        filters,
+        isPublicView: !authed,
+    };
 };
 
 export default function Dashboard() {
@@ -381,6 +412,16 @@ export function ErrorBoundary() {
 
     if (isRouteErrorResponse(error)) {
         switch (error.status) {
+            case 401:
+                errorInfo = {
+                    title: t("dashboard.privateTitle"),
+                    message: t("dashboard.privateMessage"),
+                    suggestion: t("dashboard.privateSuggestion"),
+                    actionable: true,
+                    showRetry: false,
+                    showContext: true,
+                };
+                break;
             case 501:
                 if (error.data?.includes("CF_ACCOUNT_ID")) {
                     errorInfo = {

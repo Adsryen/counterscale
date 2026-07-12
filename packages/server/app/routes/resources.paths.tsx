@@ -8,9 +8,20 @@ import {
 } from "~/lib/utils";
 import PaginatedTableCard from "~/components/PaginatedTableCard";
 import { SearchFilters } from "~/lib/types";
+import { assertCanViewSiteStats } from "~/lib/siteAccess";
 
 export async function loader({ context, request }: LoaderFunctionArgs) {
     const { analyticsEngine } = context;
+    const urlForSite = new URL(request.url);
+    const siteForAccess =
+        urlForSite.searchParams.get("site") ||
+        paramsFromUrl(request.url).site ||
+        "";
+    await assertCanViewSiteStats(
+        request,
+        context.cloudflare.env,
+        siteForAccess === "@unknown" ? "" : siteForAccess,
+    );
 
     const { interval, site, page = 1 } = paramsFromUrl(request.url);
 
