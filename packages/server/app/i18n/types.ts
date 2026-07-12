@@ -116,6 +116,11 @@ export type Messages = {
         site: string;
         timeRange: string;
     };
+    metrics: {
+        uv: string;
+        pv: string;
+        bounce: string;
+    };
     common: {
         langZh: string;
         langEn: string;
@@ -146,6 +151,14 @@ export type Messages = {
             step1: string;
             step2: string;
             step3: string;
+            metricSites: string;
+            metricSitesHint: string;
+            metricPv: string;
+            metricUv: string;
+            last7d: string;
+            sitesRanking: string;
+            sitesRankingDesc: string;
+            empty: string;
             metricsLater: string;
             metricsLaterDesc: string;
         };

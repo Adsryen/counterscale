@@ -9,6 +9,7 @@ import { useFetcher } from "react-router";
 import { Card } from "~/components/ui/card";
 import { SearchFilters } from "~/lib/types";
 import { requireAuth } from "~/lib/auth";
+import { useLocale } from "~/i18n/LocaleContext";
 
 export async function loader({ context, request }: LoaderFunctionArgs) {
     await requireAuth(request, context.cloudflare.env);
@@ -26,22 +27,11 @@ export async function loader({ context, request }: LoaderFunctionArgs) {
     const { startDate } = getDateTimeRange(interval, tz);
 
     // FOR BACKWARDS COMPAT, ONLY SHOW BOUNCE RATE IF WE HAVE DATE FOR THE ENTIRE QUERY PERIOD
-    // -----------------------------------------------------------------------------
-    // Bounce rate is a later-introduced metric that may not have been recorded for
-    // the full duration of the queried Counterscale dataset (not possible to backfill
-    // data we dont have!)
-
-    // So, cannot reliably show "bounce rate" if bounce data was unavailable for a portion
-    // of the query period.
-
-    // To figure out if we can give an answer or not, we inspect the earliest bounce/earliest event
-    // data recorded, and determine if our dataset is "complete" for the given query interval.
-
     const hasSufficientBounceData =
         earliestBounce !== null &&
         earliestEvent !== null &&
-        (earliestEvent.getTime() == earliestBounce.getTime() || // earliest event recorded a bounce -- any query is fine
-            earliestBounce < startDate); // earliest bounce occurred before start of query period -- this query is fine
+        (earliestEvent.getTime() == earliestBounce.getTime() ||
+            earliestBounce < startDate);
 
     const bounceRate =
         counts.visitors > 0 ? counts.bounces / counts.visitors : undefined;
@@ -66,10 +56,11 @@ export const StatsCard = ({
     timezone: string;
 }) => {
     const dataFetcher = useFetcher<typeof loader>();
+    const { t } = useLocale();
 
     const { views, visitors, bounceRate, hasSufficientBounceData } =
         dataFetcher.data || {};
-    const countFormatter = Intl.NumberFormat("en", { notation: "compact" });
+    const countFormatter = Intl.NumberFormat("zh-CN", { notation: "compact" });
 
     useEffect(() => {
         const params = {
@@ -83,39 +74,39 @@ export const StatsCard = ({
             method: "get",
             action: `/resources/stats`,
         });
-        // NOTE: dataFetcher is intentionally omitted from the useEffect dependency array
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [siteId, interval, filters, timezone]);
 
     return (
-        <Card>
-            <div className="p-4 pl-6">
-                <div className="grid grid-cols-3 gap-10 items-end">
+        <Card className="rounded-2xl shadow-sm overflow-hidden">
+            <div className="p-4 pl-6 sm:p-6">
+                <div className="grid grid-cols-3 gap-6 sm:gap-10 items-end">
                     <div>
-                        <div className="text-md sm:text-lg">Visitors</div>
-                        <div className="text-4xl">
-                            {visitors ? countFormatter.format(visitors) : "-"}
+                        <div className="text-sm sm:text-base text-muted-foreground">
+                            {t("metrics.uv")}
+                        </div>
+                        <div className="text-3xl sm:text-4xl font-semibold tabular-nums tracking-tight">
+                            {visitors ? countFormatter.format(visitors) : "—"}
                         </div>
                     </div>
 
                     <div>
-                        <div className="text-md sm:text-lg">Views</div>
-                        <div className="text-4xl">
-                            {views ? countFormatter.format(views) : "-"}
+                        <div className="text-sm sm:text-base text-muted-foreground">
+                            {t("metrics.pv")}
+                        </div>
+                        <div className="text-3xl sm:text-4xl font-semibold tabular-nums tracking-tight">
+                            {views ? countFormatter.format(views) : "—"}
                         </div>
                     </div>
                     <div>
-                        <div className="text-md sm:text-lg">
-                            <span>
-                                Bounce
-                                <span className="hidden sm:inline"> Rate</span>
-                            </span>
+                        <div className="text-sm sm:text-base text-muted-foreground">
+                            {t("metrics.bounce")}
                         </div>
-                        <div className="text-4xl">
+                        <div className="text-3xl sm:text-4xl font-semibold tabular-nums tracking-tight">
                             {hasSufficientBounceData
                                 ? bounceRate !== undefined
                                     ? `${Math.round(bounceRate * 100)}%`
-                                    : "-"
+                                    : "—"
                                 : "n/a"}
                         </div>
                     </div>
