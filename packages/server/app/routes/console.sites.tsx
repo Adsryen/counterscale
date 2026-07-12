@@ -222,6 +222,18 @@ export async function action({
             };
         }
 
+        if (intent === "togglePublic") {
+            const siteId = String(form.get("siteId") || "");
+            const next = form.get("publicStats") === "1";
+            await updateSite(db, siteId, { publicStats: next });
+            return {
+                ok: true,
+                message: next
+                    ? translate(messages, "admin.publicToggledOn", { siteId })
+                    : translate(messages, "admin.publicToggledOff", { siteId }),
+            };
+        }
+
         if (intent === "delete") {
             const siteId = String(form.get("siteId") || "");
             await deleteSite(db, siteId);
@@ -419,7 +431,7 @@ function SiteRow({
                 </div>
             </td>
             <td className="py-3 px-2 align-top text-sm">
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-1.5">
                     {site.enabled ? (
                         <span className="text-emerald-600 dark:text-emerald-400">
                             {t("admin.enabled")}
@@ -429,11 +441,40 @@ function SiteRow({
                             {t("admin.disabled")}
                         </span>
                     )}
-                    <span className="text-xs text-muted-foreground">
-                        {site.publicStats
-                            ? t("admin.publicStatsOn")
-                            : t("admin.publicStatsOff")}
-                    </span>
+                    <Form method="post" className="inline">
+                        <input
+                            type="hidden"
+                            name="intent"
+                            value="togglePublic"
+                        />
+                        <input
+                            type="hidden"
+                            name="siteId"
+                            value={site.siteId}
+                        />
+                        <input
+                            type="hidden"
+                            name="publicStats"
+                            value={site.publicStats ? "0" : "1"}
+                        />
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            title={t("admin.publicStatsHelp")}
+                            className={
+                                site.publicStats
+                                    ? "text-left text-xs rounded-lg px-2 py-1 border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 hover:opacity-90"
+                                    : "text-left text-xs rounded-lg px-2 py-1 border border-border bg-muted/50 text-muted-foreground hover:bg-muted"
+                            }
+                        >
+                            {site.publicStats
+                                ? t("admin.publicStatsOn")
+                                : t("admin.publicStatsOff")}
+                            <span className="ml-1 opacity-70">
+                                · {t("admin.publicToggleHint")}
+                            </span>
+                        </button>
+                    </Form>
                 </div>
                 {site.allowedHosts ? (
                     <div className="text-xs text-muted-foreground mt-1">

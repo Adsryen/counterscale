@@ -94,6 +94,9 @@ export const zh: Messages = {
         missingDb:
             "缺少 D1 绑定 DB。请创建 D1 数据库并写入 wrangler.json。",
         missingDbShort: "缺少 D1 绑定：DB 未配置。",
+        publicToggledOn: "「{siteId}」已设为公开统计：匿名可在前台查看。",
+        publicToggledOff: "「{siteId}」已设为仅登录可见。",
+        publicToggleHint: "点击切换",
     },
     dashboard: {
         today: "今天",

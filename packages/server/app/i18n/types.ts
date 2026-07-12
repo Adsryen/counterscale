@@ -94,6 +94,9 @@ export type Messages = {
         unknownIntent: string;
         missingDb: string;
         missingDbShort: string;
+        publicToggleHint: string;
+        publicToggledOff: string;
+        publicToggledOn: string;
     };
     dashboard: {
         today: string;

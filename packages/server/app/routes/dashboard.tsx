@@ -49,7 +49,7 @@ import { TimeSeriesCard } from "./resources.timeseries";
 import { StatsCard } from "./resources.stats";
 import { useLocale } from "~/i18n/LocaleContext";
 import { getUser, isAuthEnabled } from "~/lib/auth";
-import { listPublicSites, listSites } from "~/lib/sites";
+import { listSites } from "~/lib/sites";
 import { canViewSiteStats } from "~/lib/siteAccess";
 
 export const meta: MetaFunction = () => {
@@ -87,7 +87,7 @@ export const loader = async ({ context, request, params }: LoaderFunctionArgs) =
     const user = await getUser(request, env);
     const authed = !isAuthEnabled(env) || user.authenticated;
 
-    // Build site dropdown list
+    // Build site dropdown list from AE traffic + D1 registry
     let candidateIds: string[] = [];
     try {
         const sitesByHits = await analyticsEngine.getSitesOrderedByHits(
@@ -99,28 +99,37 @@ export const loader = async ({ context, request, params }: LoaderFunctionArgs) =
         throw new Error("Failed to fetch data from Analytics Engine");
     }
 
-    // Anonymous: only sites marked public (or not in registry). Operators: all AE sites.
+    const registry = env.DB ? await listSites(env.DB) : [];
+    const privateSet = new Set(
+        registry.filter((s) => !s.publicStats).map((s) => s.siteId),
+    );
+    const publicSet = new Set(
+        registry.filter((s) => s.publicStats).map((s) => s.siteId),
+    );
+    const allRegistryIds = registry.map((s) => s.siteId);
+
+    // Operators: AE traffic ∪ every registry site (so brand-new sites appear).
+    // Anonymous: AE traffic that is not private ∪ public registry sites.
     let visibleSites: string[] = [];
     if (authed) {
-        visibleSites = candidateIds;
-    } else if (env.DB) {
-        const allReg = await listSites(env.DB);
-        const privateSet = new Set(
-            allReg.filter((s) => !s.publicStats).map((s) => s.siteId),
-        );
-        const publicSet = new Set(
-            allReg.filter((s) => s.publicStats).map((s) => s.siteId),
-        );
-        // AE candidates that are not private
-        for (const id of candidateIds) {
-            if (!privateSet.has(id)) visibleSites.push(id);
-        }
-        // Public registry sites with no recent AE hits
-        for (const id of publicSet) {
-            if (!visibleSites.includes(id)) visibleSites.push(id);
+        const seen = new Set<string>();
+        for (const id of [...candidateIds, ...allRegistryIds]) {
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            visibleSites.push(id);
         }
     } else {
-        visibleSites = candidateIds;
+        const seen = new Set<string>();
+        for (const id of candidateIds) {
+            if (!id || privateSet.has(id) || seen.has(id)) continue;
+            seen.add(id);
+            visibleSites.push(id);
+        }
+        for (const id of publicSet) {
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            visibleSites.push(id);
+        }
     }
 
     // Public dashboard: pick first visible site when none specified
@@ -220,7 +229,8 @@ export default function Dashboard() {
             <div className="w-full mb-2 flex gap-4 flex-wrap items-center">
                 <div className="lg:basis-1/5-gap-4 sm:basis-1/4-gap-4 basis-1/2-gap-4">
                     <Select
-                        defaultValue={data.siteId}
+                        key={`site-${data.siteId}`}
+                        value={data.siteId || "@unknown"}
                         onValueChange={(site) => changeSite(site)}
                     >
                         <SelectTrigger className="rounded-xl">
@@ -242,7 +252,8 @@ export default function Dashboard() {
 
                 <div className="lg:basis-1/6-gap-4 sm:basis-1/5-gap-4 basis-1/3-gap-4">
                     <Select
-                        defaultValue={data.interval}
+                        key={`interval-${data.interval}`}
+                        value={data.interval}
                         onValueChange={(interval) => changeInterval(interval)}
                     >
                         <SelectTrigger className="rounded-xl">

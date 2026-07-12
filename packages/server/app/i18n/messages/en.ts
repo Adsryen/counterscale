@@ -95,6 +95,9 @@ export const en: Messages = {
         missingDb:
             "Missing D1 binding: DB is not configured. Create a D1 database and add it to wrangler.json.",
         missingDbShort: "Missing D1 binding: DB is not configured.",
+        publicToggledOn: "\"{siteId}\" is public: anyone can view stats on the dashboard.",
+        publicToggledOff: "\"{siteId}\" is private: sign-in required.",
+        publicToggleHint: "click to toggle",
     },
     dashboard: {
         today: "Today",
