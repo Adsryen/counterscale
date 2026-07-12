@@ -186,6 +186,7 @@ export type Messages = {
             metricsLaterDesc: string;
         };
         site: {
+            consoleAnalytics: string;
             hub: string;
             notInRegistry: string;
             createdHint: string;

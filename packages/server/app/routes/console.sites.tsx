@@ -19,7 +19,7 @@ import {
     CardHeader,
     CardTitle,
 } from "~/components/ui/card";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { requireAuth } from "~/lib/auth";
 import {
     createSite,
@@ -29,6 +29,7 @@ import {
 } from "~/lib/sites";
 import { getMessages, resolveLocale, translate } from "~/i18n";
 import { useLocale } from "~/i18n/LocaleContext";
+import { cn } from "~/lib/utils";
 
 export const meta: MetaFunction = () => {
     return [
@@ -61,6 +62,29 @@ function localeMessages(request: Request) {
         acceptLanguage: request.headers.get("Accept-Language"),
     });
     return getMessages(locale);
+}
+
+/** Plain link that looks like a Button — avoids asChild/Slot click issues. */
+function ActionLink({
+    href,
+    children,
+    variant = "outline",
+}: {
+    href: string;
+    children: React.ReactNode;
+    variant?: "default" | "outline" | "secondary";
+}) {
+    return (
+        <a
+            href={href}
+            className={cn(
+                buttonVariants({ variant, size: "sm" }),
+                "rounded-xl no-underline",
+            )}
+        >
+            {children}
+        </a>
+    );
 }
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -221,14 +245,21 @@ export async function action({
 function SiteRow({ site }: { site: SiteListItem }) {
     const [editing, setEditing] = useState(false);
     const navigation = useNavigation();
-    const busy = navigation.state !== "idle";
+    // Only disable the form that is submitting, not every button on the page
+    const submitting = navigation.state === "submitting";
     const { t } = useLocale();
 
+    const codeHref = `/console/sites/${encodeURIComponent(site.siteId)}/code`;
+    const analyticsHref = `/console/sites/${encodeURIComponent(site.siteId)}/analytics`;
+    const hubHref = `/console/sites/${encodeURIComponent(site.siteId)}`;
+    const publicDashHref = `/dashboard?site=${encodeURIComponent(site.siteId)}`;
+
+    // AE-discovered only
     if (!site.inRegistry) {
         return (
             <tr className="border-b bg-muted/20">
-                <td className="py-3 px-2">
-                    <div className="font-medium">{site.name}</div>
+                <td className="py-3 px-2 align-top">
+                    <div className="font-medium break-all">{site.name}</div>
                     <div className="flex flex-wrap items-center gap-2 mt-0.5">
                         <code className="text-xs bg-muted px-1 rounded">
                             {site.siteId}
@@ -237,15 +268,18 @@ function SiteRow({ site }: { site: SiteListItem }) {
                             {t("console.site.discoveredBadge")}
                         </span>
                     </div>
+                    {site.hits90d != null ? (
+                        <div className="text-xs text-muted-foreground mt-1">
+                            {t("console.site.hits90d", { count: site.hits90d })}
+                        </div>
+                    ) : null}
                 </td>
-                <td className="py-3 px-2 text-sm text-muted-foreground">
-                    {site.hits90d != null
-                        ? t("console.site.hits90d", { count: site.hits90d })
-                        : "—"}
+                <td className="py-3 px-2 align-top text-sm text-muted-foreground">
+                    {t("admin.publicStatsOn")}
                 </td>
-                <td className="py-3 px-2" colSpan={2}>
+                <td className="py-3 px-2 align-top" colSpan={2}>
                     <div className="flex flex-wrap gap-2">
-                        <Form method="post">
+                        <Form method="post" className="inline">
                             <input type="hidden" name="intent" value="import" />
                             <input
                                 type="hidden"
@@ -261,35 +295,20 @@ function SiteRow({ site }: { site: SiteListItem }) {
                                 type="submit"
                                 size="sm"
                                 className="rounded-xl"
-                                disabled={busy}
+                                disabled={submitting}
                             >
                                 {t("console.site.import")}
                             </Button>
                         </Form>
-                        <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            className="rounded-xl"
-                        >
-                            <a
-                                href={`/console/sites/${encodeURIComponent(site.siteId)}/analytics`}
-                            >
-                                {t("admin.dashboard")}
-                            </a>
-                        </Button>
-                        <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            className="rounded-xl"
-                        >
-                            <a
-                                href={`/console/sites/${encodeURIComponent(site.siteId)}/code`}
-                            >
-                                {t("admin.snippet")}
-                            </a>
-                        </Button>
+                        <ActionLink href={codeHref} variant="default">
+                            {t("admin.snippet")}
+                        </ActionLink>
+                        <ActionLink href={publicDashHref}>
+                            {t("admin.dashboard")}
+                        </ActionLink>
+                        <ActionLink href={analyticsHref}>
+                            {t("console.site.consoleAnalytics")}
+                        </ActionLink>
                     </div>
                 </td>
             </tr>
@@ -300,11 +319,7 @@ function SiteRow({ site }: { site: SiteListItem }) {
         return (
             <tr className="border-b align-top">
                 <td colSpan={4} className="py-3 px-2">
-                    <Form
-                        method="post"
-                        className="space-y-3"
-                        onSubmit={() => setEditing(false)}
-                    >
+                    <Form method="post" className="space-y-3">
                         <input type="hidden" name="intent" value="update" />
                         <input type="hidden" name="siteId" value={site.siteId} />
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -316,7 +331,7 @@ function SiteRow({ site }: { site: SiteListItem }) {
                                     name="name"
                                     defaultValue={site.name}
                                     required
-                                    className="mt-1 w-full px-3 py-2 border border-input rounded-md shadow-sm"
+                                    className="mt-1 w-full px-3 py-2 border border-input rounded-xl shadow-sm bg-background"
                                 />
                             </div>
                             <div>
@@ -327,7 +342,7 @@ function SiteRow({ site }: { site: SiteListItem }) {
                                     name="allowedHosts"
                                     defaultValue={site.allowedHosts ?? ""}
                                     placeholder="example.com, www.example.com"
-                                    className="mt-1 w-full px-3 py-2 border border-input rounded-md shadow-sm"
+                                    className="mt-1 w-full px-3 py-2 border border-input rounded-xl shadow-sm bg-background"
                                 />
                             </div>
                         </div>
@@ -351,13 +366,19 @@ function SiteRow({ site }: { site: SiteListItem }) {
                             {t("admin.publicStatsHelp")}
                         </p>
                         <div className="flex flex-wrap gap-2">
-                            <Button type="submit" size="sm" disabled={busy}>
+                            <Button
+                                type="submit"
+                                size="sm"
+                                className="rounded-xl"
+                                disabled={submitting}
+                            >
                                 {t("admin.save")}
                             </Button>
                             <Button
                                 type="button"
                                 size="sm"
                                 variant="outline"
+                                className="rounded-xl"
                                 onClick={() => setEditing(false)}
                             >
                                 {t("admin.cancel")}
@@ -371,9 +392,9 @@ function SiteRow({ site }: { site: SiteListItem }) {
 
     return (
         <tr className="border-b">
-            <td className="py-3 px-2">
+            <td className="py-3 px-2 align-top">
                 <a
-                    href={`/console/sites/${encodeURIComponent(site.siteId)}`}
+                    href={hubHref}
                     className="font-medium text-foreground hover:underline"
                 >
                     {site.name}
@@ -384,7 +405,7 @@ function SiteRow({ site }: { site: SiteListItem }) {
                     </code>
                 </div>
             </td>
-            <td className="py-3 px-2 text-sm">
+            <td className="py-3 px-2 align-top text-sm">
                 <div className="flex flex-col gap-0.5">
                     {site.enabled ? (
                         <span className="text-emerald-600 dark:text-emerald-400">
@@ -407,39 +428,20 @@ function SiteRow({ site }: { site: SiteListItem }) {
                     </div>
                 ) : null}
             </td>
-            <td className="py-3 px-2">
+            <td className="py-3 px-2 align-top">
                 <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" className="rounded-xl">
-                        <a
-                            href={`/console/sites/${encodeURIComponent(site.siteId)}/code`}
-                        >
-                            {t("admin.snippet")}
-                        </a>
-                    </Button>
-                    <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl"
-                    >
-                        <a
-                            href={`/console/sites/${encodeURIComponent(site.siteId)}/analytics`}
-                        >
-                            {t("admin.dashboard")}
-                        </a>
-                    </Button>
-                    <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl"
-                    >
-                        <a
-                            href={`/console/sites/${encodeURIComponent(site.siteId)}`}
-                        >
-                            {t("console.site.hub")}
-                        </a>
-                    </Button>
+                    <ActionLink href={codeHref} variant="default">
+                        {t("admin.snippet")}
+                    </ActionLink>
+                    <ActionLink href={publicDashHref}>
+                        {t("admin.dashboard")}
+                    </ActionLink>
+                    <ActionLink href={analyticsHref}>
+                        {t("console.site.consoleAnalytics")}
+                    </ActionLink>
+                    <ActionLink href={hubHref} variant="secondary">
+                        {t("console.site.hub")}
+                    </ActionLink>
                     <Button
                         type="button"
                         size="sm"
@@ -451,15 +453,16 @@ function SiteRow({ site }: { site: SiteListItem }) {
                     </Button>
                 </div>
             </td>
-            <td className="py-3 px-2 text-right">
-                <Form method="post">
+            <td className="py-3 px-2 align-top text-right">
+                <Form method="post" className="inline">
                     <input type="hidden" name="intent" value="delete" />
                     <input type="hidden" name="siteId" value={site.siteId} />
                     <Button
                         type="submit"
                         size="sm"
                         variant="destructive"
-                        disabled={busy}
+                        className="rounded-xl"
+                        disabled={submitting}
                         onClick={(e) => {
                             if (
                                 !window.confirm(
@@ -485,11 +488,11 @@ export default function AdminSites() {
         useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const navigation = useNavigation();
-    const busy = navigation.state !== "idle";
+    const submitting = navigation.state === "submitting";
     const { t } = useLocale();
 
     return (
-        <div className="max-w-4xl space-y-6">
+        <div className="max-w-5xl space-y-6">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">
                     {t("admin.title")}
@@ -542,7 +545,7 @@ export default function AdminSites() {
                                     name="name"
                                     required
                                     placeholder="My Blog"
-                                    className="mt-1 w-full px-3 py-2 border border-input rounded-md shadow-sm"
+                                    className="mt-1 w-full px-3 py-2 border border-input rounded-xl shadow-sm bg-background"
                                 />
                             </div>
                             <div>
@@ -559,7 +562,7 @@ export default function AdminSites() {
                                     placeholder="blog"
                                     autoComplete="off"
                                     spellCheck={false}
-                                    className="mt-1 w-full px-3 py-2 border border-input rounded-md shadow-sm"
+                                    className="mt-1 w-full px-3 py-2 border border-input rounded-xl shadow-sm bg-background"
                                 />
                             </div>
                         </div>
@@ -576,7 +579,7 @@ export default function AdminSites() {
                                 placeholder={t(
                                     "admin.allowedHostsPlaceholder",
                                 )}
-                                className="mt-1 w-full px-3 py-2 border border-input rounded-md shadow-sm"
+                                className="mt-1 w-full px-3 py-2 border border-input rounded-xl shadow-sm bg-background"
                             />
                         </div>
                         <label className="flex items-center gap-2 text-sm">
@@ -592,7 +595,7 @@ export default function AdminSites() {
                         </p>
                         <Button
                             type="submit"
-                            disabled={busy}
+                            disabled={submitting}
                             className="rounded-xl"
                         >
                             {t("admin.create")}
@@ -620,7 +623,7 @@ export default function AdminSites() {
                             {t("console.site.emptyHint")}
                         </p>
                     ) : (
-                        <table className="w-full text-left text-sm">
+                        <table className="w-full text-left text-sm min-w-[640px]">
                             <thead>
                                 <tr className="border-b text-muted-foreground">
                                     <th className="py-2 px-2 font-medium">

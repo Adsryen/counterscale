@@ -191,6 +191,7 @@ export const zh: Messages = {
         },
 
         site: {
+            consoleAnalytics: "后台分析",
             hub: "站点主页",
             notInRegistry: "未在名册中（仍可取码与看数）",
             createdHint: "站点已创建。下一步：获取统计代码并安装到网站。",

@@ -3,7 +3,7 @@ import { useLoaderData } from "react-router";
 import { requireAuth } from "~/lib/auth";
 import { getSite } from "~/lib/sites";
 import { useLocale } from "~/i18n/LocaleContext";
-import { Button } from "~/components/ui/button";
+import { buttonVariants } from "~/components/ui/button";
 import {
     Card,
     CardContent,
@@ -11,6 +11,7 @@ import {
     CardHeader,
     CardTitle,
 } from "~/components/ui/card";
+import { cn } from "~/lib/utils";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
     const name = data?.site?.name || data?.siteId || "Site";
@@ -42,12 +43,20 @@ export default function ConsoleSiteHub() {
     const { t } = useLocale();
     const name = site?.name || siteId;
     const enabled = site ? site.enabled : true;
+    const publicStats = site ? site.publicStats : true;
+
+    const codeHref = `/console/sites/${encodeURIComponent(siteId)}/code`;
+    const analyticsHref = `/console/sites/${encodeURIComponent(siteId)}/analytics`;
+    const publicDashHref = `/dashboard?site=${encodeURIComponent(siteId)}`;
 
     return (
         <div className="max-w-3xl space-y-6">
             <div>
                 <p className="text-sm text-muted-foreground mb-1">
-                    <a href="/console/sites" className="underline hover:text-foreground">
+                    <a
+                        href="/console/sites"
+                        className="underline hover:text-foreground"
+                    >
                         {t("console.nav.sites")}
                     </a>
                     {" / "}
@@ -61,17 +70,24 @@ export default function ConsoleSiteHub() {
                         {siteId}
                     </code>
                     {site ? (
-                        <span
-                            className={
-                                enabled
-                                    ? "text-sm text-emerald-600 dark:text-emerald-400"
-                                    : "text-sm text-muted-foreground"
-                            }
-                        >
-                            {enabled
-                                ? t("admin.enabled")
-                                : t("admin.disabled")}
-                        </span>
+                        <>
+                            <span
+                                className={
+                                    enabled
+                                        ? "text-sm text-emerald-600 dark:text-emerald-400"
+                                        : "text-sm text-muted-foreground"
+                                }
+                            >
+                                {enabled
+                                    ? t("admin.enabled")
+                                    : t("admin.disabled")}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                                {publicStats
+                                    ? t("admin.publicStatsOn")
+                                    : t("admin.publicStatsOff")}
+                            </span>
+                        </>
                     ) : (
                         <span className="text-sm text-amber-700 dark:text-amber-400">
                             {t("console.site.notInRegistry")}
@@ -100,13 +116,15 @@ export default function ConsoleSiteHub() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button asChild className="rounded-xl">
-                            <a
-                                href={`/console/sites/${encodeURIComponent(siteId)}/code`}
-                            >
-                                {t("admin.snippet")}
-                            </a>
-                        </Button>
+                        <a
+                            href={codeHref}
+                            className={cn(
+                                buttonVariants({ variant: "default" }),
+                                "rounded-xl",
+                            )}
+                        >
+                            {t("admin.snippet")}
+                        </a>
                     </CardContent>
                 </Card>
 
@@ -119,14 +137,25 @@ export default function ConsoleSiteHub() {
                             {t("console.site.analyticsDesc")}
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <Button asChild variant="outline" className="rounded-xl">
-                            <a
-                                href={`/console/sites/${encodeURIComponent(siteId)}/analytics`}
-                            >
-                                {t("admin.dashboard")}
-                            </a>
-                        </Button>
+                    <CardContent className="flex flex-wrap gap-2">
+                        <a
+                            href={publicDashHref}
+                            className={cn(
+                                buttonVariants({ variant: "default" }),
+                                "rounded-xl",
+                            )}
+                        >
+                            {t("admin.dashboard")}
+                        </a>
+                        <a
+                            href={analyticsHref}
+                            className={cn(
+                                buttonVariants({ variant: "outline" }),
+                                "rounded-xl",
+                            )}
+                        >
+                            {t("console.site.consoleAnalytics")}
+                        </a>
                     </CardContent>
                 </Card>
             </div>
@@ -143,9 +172,15 @@ export default function ConsoleSiteHub() {
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-                <Button asChild variant="outline" className="rounded-xl">
-                    <a href="/console/sites">{t("console.site.backList")}</a>
-                </Button>
+                <a
+                    href="/console/sites"
+                    className={cn(
+                        buttonVariants({ variant: "outline" }),
+                        "rounded-xl",
+                    )}
+                >
+                    {t("console.site.backList")}
+                </a>
             </div>
         </div>
     );

@@ -198,6 +198,7 @@ export const en: Messages = {
         },
 
         site: {
+            consoleAnalytics: "Console analytics",
             hub: "Site home",
             notInRegistry: "Not in registry (code & analytics still work)",
             createdHint: "Site created. Next: get the tracking code and install it.",
