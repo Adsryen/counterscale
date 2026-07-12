@@ -82,17 +82,17 @@ export default function Index() {
                 alt="CounterScale Logo"
                 className="w-72"
             />
-            <Card className="w-full max-w-md p-8 text-center">
+            <Card className="w-full max-w-md p-8 text-center rounded-2xl shadow-sm">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                    <h1 className="text-2xl font-bold text-foreground mb-2">
                         {t("login.title")}
                     </h1>
-                    <p className="text-gray-600">{subtitle}</p>
+                    <p className="text-muted-foreground">{subtitle}</p>
                 </div>
 
                 {/* When auth is disabled or user is already authenticated, show dashboard button */}
                 {!authEnabled || user?.authenticated ? (
-                    <Button asChild className="w-full">
+                    <Button asChild className="w-full rounded-xl">
                         <a href="/console">{t("login.goDashboard")}</a>
                     </Button>
                 ) : (
@@ -108,18 +108,18 @@ export default function Index() {
                                 name="password"
                                 required
                                 disabled={isSubmitting}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full px-3 py-2 border border-input rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
                                 placeholder={t("login.passwordPlaceholder")}
                             />
                         </div>
                         {actionData?.error && (
-                            <div className="text-red-600 text-sm">
+                            <div className="text-destructive text-sm">
                                 {actionData.error}
                             </div>
                         )}
                         <Button
                             type="submit"
-                            className="w-full"
+                            className="w-full rounded-xl"
                             disabled={isSubmitting}
                         >
                             {isSubmitting

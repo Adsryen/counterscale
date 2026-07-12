@@ -1,4 +1,6 @@
 import type { MetaFunction } from "react-router";
+import { useLoaderData } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 import { useLocale } from "~/i18n/LocaleContext";
 import {
     Card,
@@ -14,9 +16,15 @@ export const meta: MetaFunction = () => {
     return [{ title: "Counterscale Settings" }];
 };
 
+export async function loader({ context }: LoaderFunctionArgs) {
+    const version = context.cloudflare?.env?.VERSION || null;
+    return { version };
+}
+
 export default function ConsoleSettings() {
-    const { t } = useLocale();
+    const { t, locale, setLocale } = useLocale();
     const { preference, resolved } = useTheme();
+    const { version } = useLoaderData<typeof loader>();
 
     return (
         <div className="space-y-6 max-w-2xl">
@@ -46,6 +54,78 @@ export default function ConsoleSettings() {
                             : preference === "dark"
                               ? t("theme.dark")
                               : t("theme.light")}
+                    </p>
+                </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-base">
+                        {t("console.settings.langTitle")}
+                    </CardTitle>
+                    <CardDescription>
+                        {t("console.settings.langDesc")}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div
+                        className="inline-flex items-center text-sm border border-input rounded-full overflow-hidden"
+                        role="group"
+                        aria-label="Language"
+                    >
+                        <button
+                            type="button"
+                            className={
+                                locale === "zh"
+                                    ? "px-3 py-1 bg-muted font-semibold"
+                                    : "px-3 py-1 hover:bg-muted/60"
+                            }
+                            onClick={() => setLocale("zh")}
+                        >
+                            {t("common.langZh")}
+                        </button>
+                        <button
+                            type="button"
+                            className={
+                                locale === "en"
+                                    ? "px-3 py-1 bg-muted font-semibold"
+                                    : "px-3 py-1 hover:bg-muted/60"
+                            }
+                            onClick={() => setLocale("en")}
+                        >
+                            {t("common.langEn")}
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-base">
+                        {t("console.settings.aboutTitle")}
+                    </CardTitle>
+                    <CardDescription>
+                        {t("console.settings.aboutDesc")}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground space-y-2">
+                    <p>
+                        {t("footer.version")}{" "}
+                        <code className="bg-muted px-1 rounded">
+                            {version
+                                ? version.length > 12
+                                    ? version.slice(0, 7)
+                                    : version
+                                : "—"}
+                        </code>
+                    </p>
+                    <p>
+                        <a
+                            href="https://pv.we-together.club"
+                            className="text-primary underline"
+                        >
+                            pv.we-together.club
+                        </a>
                     </p>
                 </CardContent>
             </Card>

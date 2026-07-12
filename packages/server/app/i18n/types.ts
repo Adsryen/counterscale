@@ -178,6 +178,10 @@ export type Messages = {
             subtitle: string;
             themeTitle: string;
             themeDesc: string;
+            langTitle: string;
+            langDesc: string;
+            aboutTitle: string;
+            aboutDesc: string;
             cfTitle: string;
             cfDesc: string;
         };

@@ -43,7 +43,7 @@ export const zh: Messages = {
         openDashboardAll: "全部站点仪表盘",
     },
     admin: {
-        title: "管理后台",
+        title: "站点管理",
         intro:
             "先创建站点，再获取统计代码安装；有流量后查看分析。访问量写入 Analytics Engine。",
         addTitle: "添加站点",
@@ -183,6 +183,10 @@ export const zh: Messages = {
             subtitle: "主题、语言与运维入口。",
             themeTitle: "外观",
             themeDesc: "可跟随系统，或固定浅色 / 深色；选择会写入 Cookie 并记住。",
+            langTitle: "语言",
+            langDesc: "界面语言会写入 Cookie，刷新后保持。",
+            aboutTitle: "关于",
+            aboutDesc: "当前部署版本与访问地址。",
             cfTitle: "Cloudflare",
             cfDesc: "在 Cloudflare 控制台打开本 Worker。",
         },

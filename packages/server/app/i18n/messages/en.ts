@@ -43,7 +43,7 @@ export const en: Messages = {
         openDashboardAll: "All sites dashboard",
     },
     admin: {
-        title: "Admin",
+        title: "Sites",
         intro:
             "Create a site, install tracking code, then open analytics. Pageviews stay in Analytics Engine.",
         addTitle: "Add site",
@@ -190,6 +190,10 @@ export const en: Messages = {
             subtitle: "Theme, language, and operations links.",
             themeTitle: "Appearance",
             themeDesc: "Follow system appearance, or force light / dark. Preference is saved in a cookie.",
+            langTitle: "Language",
+            langDesc: "UI language is saved in a cookie.",
+            aboutTitle: "About",
+            aboutDesc: "Deployed version and public URL.",
             cfTitle: "Cloudflare",
             cfDesc: "Open the Worker in Cloudflare dashboard.",
         },
