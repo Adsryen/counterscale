@@ -22,6 +22,8 @@ export type Messages = {
         step3: string;
         openConsole: string;
         gotoLogin: string;
+        dashboardTitle: string;
+        dashboardHint: string;
         note: string;
     };
     login: {

@@ -18,6 +18,8 @@ export const en: Messages = {
         step3: "Review traffic in the console",
         openConsole: "Open console",
         gotoLogin: "Sign in",
+        dashboardTitle: "Analytics",
+        dashboardHint: "Public dashboard: pick a site and range to view PV / UV. Console requires sign-in.",
         note: "Tracker script and /collect stay public so sites can report without login.",
     },
     login: {

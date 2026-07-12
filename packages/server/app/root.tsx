@@ -268,30 +268,34 @@ function AppShell({
                         />
                     </div>
                     <div className="flex items-center gap-2">
+                        <a
+                            href="/dashboard"
+                            className="text-sm font-medium"
+                        >
+                            {t("home.dashboardTitle")}
+                        </a>
                         <ThemeSwitcher />
                         <LanguageSwitcher />
-                        {data.user?.authenticated && data.isAuthEnabled ? (
+                        {data.user?.authenticated || !data.isAuthEnabled ? (
                             <a
                                 href="/console"
                                 className="text-sm font-medium ml-1"
                             >
                                 {t("home.openConsole")}
                             </a>
-                        ) : data.isAuthEnabled ? (
+                        ) : (
                             <a
                                 href="/login"
                                 className="text-sm font-medium ml-1"
                             >
                                 {t("home.gotoLogin")}
                             </a>
-                        ) : (
-                            <a
-                                href="/console"
-                                className="text-sm font-medium ml-1"
-                            >
-                                {t("home.openConsole")}
-                            </a>
                         )}
+                        {data.user?.authenticated && data.isAuthEnabled ? (
+                            <a href="/logout" className="text-sm font-medium ml-1">
+                                {t("nav.logout")}
+                            </a>
+                        ) : null}
                     </div>
                 </nav>
             </header>

@@ -18,6 +18,8 @@ export const zh: Messages = {
         step3: "在控制台查看流量与报表",
         openConsole: "进入控制台",
         gotoLogin: "登录后台",
+        dashboardTitle: "访问统计",
+        dashboardHint: "公开仪表盘：选择站点与时间范围查看 PV / UV。管理后台需登录。",
         note: "埋点脚本与 /collect 接口始终公开，无需登录即可上报。",
     },
     login: {
