@@ -275,9 +275,23 @@ function AppShell({
                                 href="/console"
                                 className="text-sm font-medium ml-1"
                             >
-                                {t("console.nav.overview")}
+                                {t("home.openConsole")}
                             </a>
-                        ) : null}
+                        ) : data.isAuthEnabled ? (
+                            <a
+                                href="/login"
+                                className="text-sm font-medium ml-1"
+                            >
+                                {t("home.gotoLogin")}
+                            </a>
+                        ) : (
+                            <a
+                                href="/console"
+                                className="text-sm font-medium ml-1"
+                            >
+                                {t("home.openConsole")}
+                            </a>
+                        )}
                     </div>
                 </nav>
             </header>

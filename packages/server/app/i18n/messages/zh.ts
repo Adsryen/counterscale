@@ -10,11 +10,22 @@ export const zh: Messages = {
     footer: {
         version: "版本",
     },
+    home: {
+        title: "自托管网站访问统计",
+        subtitle: "在 Cloudflare 上运行的轻量 PV 分析。前台公开介绍；管理后台需登录。",
+        step1: "在后台创建站点并获取统计代码",
+        step2: "将代码安装到你的网站",
+        step3: "在控制台查看流量与报表",
+        openConsole: "进入控制台",
+        gotoLogin: "登录后台",
+        note: "埋点脚本与 /collect 接口始终公开，无需登录即可上报。",
+    },
     login: {
         title: "欢迎使用 Counterscale",
-        subtitleGuest: "请输入密码以访问仪表盘",
-        subtitleAuthed: "继续访问你的分析仪表盘。",
-        subtitleNoAuth: "访问你的分析仪表盘。",
+        consoleTitle: "登录控制台",
+        subtitleGuest: "请输入密码以访问管理后台",
+        subtitleAuthed: "继续访问管理后台。",
+        subtitleNoAuth: "访问管理后台。",
         passwordPlaceholder: "请输入密码",
         passwordRequired: "请输入密码",
         invalidPassword: "密码错误",
@@ -22,6 +33,7 @@ export const zh: Messages = {
         signingIn: "登录中…",
         goDashboard: "进入控制台",
         passwordLabel: "密码",
+        backHome: "返回首页",
     },
     install: {
         title: "安装埋点",

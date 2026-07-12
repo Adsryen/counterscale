@@ -80,7 +80,8 @@ export async function requireAuth(request: Request, env: Env) {
     const user = await getUser(request, env);
 
     if (!user.authenticated) {
-        throw redirect("/");
+        // Password only protects the console, not the public front page
+        throw redirect("/login");
     }
 
     return user;

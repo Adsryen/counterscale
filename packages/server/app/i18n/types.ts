@@ -14,8 +14,19 @@ export type Messages = {
     footer: {
         version: string;
     };
+    home: {
+        title: string;
+        subtitle: string;
+        step1: string;
+        step2: string;
+        step3: string;
+        openConsole: string;
+        gotoLogin: string;
+        note: string;
+    };
     login: {
         title: string;
+        consoleTitle: string;
         subtitleGuest: string;
         subtitleAuthed: string;
         subtitleNoAuth: string;
@@ -26,6 +37,7 @@ export type Messages = {
         signingIn: string;
         goDashboard: string;
         passwordLabel: string;
+        backHome: string;
     };
     install: {
         title: string;

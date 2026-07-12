@@ -202,7 +202,7 @@ describe("auth", () => {
             const request = new Request("http://localhost");
 
             await expect(requireAuth(request, mockEnv)).rejects.toEqual({
-                url: "/",
+                url: "/login",
                 options: undefined,
             });
         });
@@ -213,7 +213,7 @@ describe("auth", () => {
             });
 
             await expect(requireAuth(request, mockEnv)).rejects.toEqual({
-                url: "/",
+                url: "/login",
                 options: undefined,
             });
         });
@@ -231,7 +231,7 @@ describe("auth", () => {
             });
 
             await expect(requireAuth(request, mockEnv)).rejects.toEqual({
-                url: "/",
+                url: "/login",
                 options: undefined,
             });
         });

@@ -1,133 +1,76 @@
-import {
-    ActionFunctionArgs,
-    LoaderFunctionArgs,
-    MetaFunction,
-    Form,
-    useActionData,
-    useLoaderData,
-    useNavigation,
-    redirect,
-} from "react-router";
+import type { LoaderFunctionArgs, MetaFunction } from "react-router";
+import { useLoaderData } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { getUser, login, isAuthEnabled } from "~/lib/auth";
-import { getMessages, resolveLocale, translate } from "~/i18n";
+import { getUser, isAuthEnabled } from "~/lib/auth";
 import { useLocale } from "~/i18n/LocaleContext";
 
 export const meta: MetaFunction = () => {
     return [
-        { title: "Counterscale: Web Analytics" },
-        { name: "description", content: "Counterscale: Web Analytics" },
+        { title: "Counterscale" },
+        {
+            name: "description",
+            content: "Self-hosted web analytics on Cloudflare",
+        },
     ];
 };
 
+/** Public front page — no password. Console is gated at /login. */
 export async function loader({ request, context }: LoaderFunctionArgs) {
     const env = context.cloudflare.env;
     const user = await getUser(request, env);
     const authEnabled = isAuthEnabled(env);
 
-    if (!authEnabled || user?.authenticated) {
-        throw redirect("/console");
-    }
-
-    // Return auth status to conditionally render the login form
-    return { user, authEnabled };
+    return {
+        user,
+        authEnabled,
+    };
 }
 
-export async function action({ request, context }: ActionFunctionArgs) {
-    const env = context.cloudflare.env;
-
-    // If auth is disabled, this action shouldn't be called, but handle it gracefully
-    if (!isAuthEnabled(env)) {
-        return redirect("/console");
-    }
-
-    const formData = await request.formData();
-    const password = formData.get("password");
-
-    const locale = resolveLocale({
-        cookieHeader: request.headers?.get?.("Cookie") ?? null,
-        acceptLanguage: request.headers?.get?.("Accept-Language") ?? null,
-    });
-    const messages = getMessages(locale);
-
-    if (typeof password !== "string" || !password) {
-        return { error: translate(messages, "login.passwordRequired") };
-    }
-
-    try {
-        return await login(request, password, env);
-    } catch {
-        return { error: translate(messages, "login.invalidPassword") };
-    }
-}
-
-export default function Index() {
+export default function Home() {
     const { user, authEnabled } = useLoaderData<typeof loader>();
-    const actionData = useActionData<typeof action>();
-    const navigation = useNavigation();
-    const isSubmitting = ["submitting", "loading"].includes(navigation.state);
     const { t } = useLocale();
-
-    const subtitle = !authEnabled
-        ? t("login.subtitleNoAuth")
-        : user?.authenticated
-          ? t("login.subtitleAuthed")
-          : t("login.subtitleGuest");
+    const signedIn = !authEnabled || user?.authenticated;
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 pb-12">
             <img
                 src="/counterscale-logo.webp"
                 alt="CounterScale Logo"
-                className="w-72"
+                className="w-56 sm:w-72"
             />
-            <Card className="w-full max-w-md p-8 text-center rounded-2xl shadow-sm">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-foreground mb-2">
-                        {t("login.title")}
-                    </h1>
-                    <p className="text-muted-foreground">{subtitle}</p>
+
+            <div className="text-center max-w-xl space-y-3 px-2">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                    {t("home.title")}
+                </h1>
+                <p className="text-muted-foreground text-base leading-relaxed">
+                    {t("home.subtitle")}
+                </p>
+            </div>
+
+            <Card className="w-full max-w-md p-8 rounded-2xl shadow-sm space-y-4">
+                <div className="text-sm text-muted-foreground space-y-2 text-left">
+                    <p>1. {t("home.step1")}</p>
+                    <p>2. {t("home.step2")}</p>
+                    <p>3. {t("home.step3")}</p>
                 </div>
 
-                {/* When auth is disabled or user is already authenticated, show dashboard button */}
-                {!authEnabled || user?.authenticated ? (
-                    <Button asChild className="w-full rounded-xl">
-                        <a href="/console">{t("login.goDashboard")}</a>
-                    </Button>
-                ) : (
-                    /* When auth is enabled and user is not authenticated, show login form */
-                    <Form method="post" className="space-y-4">
-                        <div>
-                            <label htmlFor="password" className="sr-only">
-                                {t("login.passwordLabel")}
-                            </label>
-                            <input
-                                type="password"
-                                id="password"
-                                name="password"
-                                required
-                                disabled={isSubmitting}
-                                className="w-full px-3 py-2 border border-input rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
-                                placeholder={t("login.passwordPlaceholder")}
-                            />
-                        </div>
-                        {actionData?.error && (
-                            <div className="text-destructive text-sm">
-                                {actionData.error}
-                            </div>
-                        )}
-                        <Button
-                            type="submit"
-                            className="w-full rounded-xl"
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting
-                                ? t("login.signingIn")
-                                : t("login.signIn")}
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    {signedIn ? (
+                        <Button asChild className="w-full rounded-xl">
+                            <a href="/console">{t("home.openConsole")}</a>
                         </Button>
-                    </Form>
-                )}
+                    ) : (
+                        <Button asChild className="w-full rounded-xl">
+                            <a href="/login">{t("home.gotoLogin")}</a>
+                        </Button>
+                    )}
+                </div>
+
+                <p className="text-xs text-muted-foreground text-center pt-1">
+                    {t("home.note")}
+                </p>
             </Card>
         </div>
     );

@@ -10,11 +10,22 @@ export const en: Messages = {
     footer: {
         version: "Version",
     },
+    home: {
+        title: "Self-hosted web analytics",
+        subtitle: "Lightweight PV analytics on Cloudflare. Public intro up front; console requires sign-in.",
+        step1: "Create a site and get the tracking code",
+        step2: "Install the code on your websites",
+        step3: "Review traffic in the console",
+        openConsole: "Open console",
+        gotoLogin: "Sign in",
+        note: "Tracker script and /collect stay public so sites can report without login.",
+    },
     login: {
         title: "Welcome to Counterscale",
-        subtitleGuest: "Enter your password to access the dashboard",
-        subtitleAuthed: "Continue to access your analytics dashboard.",
-        subtitleNoAuth: "Access your analytics dashboard.",
+        consoleTitle: "Console sign-in",
+        subtitleGuest: "Enter your password to access the admin console",
+        subtitleAuthed: "Continue to the admin console.",
+        subtitleNoAuth: "Access the admin console.",
         passwordPlaceholder: "Enter your password",
         passwordRequired: "Password is required",
         invalidPassword: "Invalid password",
@@ -22,6 +33,7 @@ export const en: Messages = {
         signingIn: "Signing In...",
         goDashboard: "Go to console",
         passwordLabel: "Password",
+        backHome: "Back to home",
     },
     install: {
         title: "Install tracking",
