@@ -1,3 +1,13 @@
+export type IdentityScope = "persistent" | "mixed" | "page";
+
+export type IdentityRequestParams = {
+    visitorId: string;
+    visitId: string;
+    tabId: string;
+    identityScope: IdentityScope;
+    clientTime: number;
+};
+
 export type CollectRequestParams = {
     p: string; // path
     h: string; // host

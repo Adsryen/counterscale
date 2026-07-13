@@ -1,3 +1,5 @@
+import { ActivityManager } from "./activity";
+import { IdentityManager } from "./identity";
 import { autoTrackPageviews } from "./track";
 import type { BaseClientConfig } from "../shared/types";
 
@@ -9,12 +11,19 @@ export class Client {
     siteId: string;
     reporterUrl: string;
     reportOnLocalhost = false;
+    identity: IdentityManager;
+    activity: ActivityManager;
 
     _cleanupAutoTrackPageviews?: () => void;
 
     constructor(opts: ClientOpts) {
         this.siteId = opts.siteId;
         this.reporterUrl = opts.reporterUrl;
+        this.identity = new IdentityManager({ siteId: opts.siteId });
+        this.activity = new ActivityManager({
+            siteId: opts.siteId,
+            getContext: () => this.identity.getContext(),
+        });
 
         if (opts.reportOnLocalhost) {
             this.reportOnLocalhost = opts.reportOnLocalhost;
@@ -34,5 +43,6 @@ export class Client {
         if (this._cleanupAutoTrackPageviews) {
             this._cleanupAutoTrackPageviews();
         }
+        this.activity.cleanup();
     }
 }

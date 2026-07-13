@@ -53,6 +53,37 @@ describe("trackPageview", () => {
         vi.restoreAllMocks();
     });
 
+
+
+    test("should attach identity context to pageview requests", async () => {
+        const client = new Client({
+            siteId: "test-site",
+            reporterUrl: "https://example.com/collect",
+            autoTrackPageviews: false,
+        });
+        vi.spyOn(client.identity, "getContext").mockReturnValue({
+            visitorId: "visitor-1",
+            visitId: "visit-1",
+            tabId: "tab-1",
+            identityScope: "persistent",
+            isNewVisit: true,
+            clientTime: 1767225600000,
+        });
+
+        await trackPageview(client);
+
+        expect(makeRequestMock).toHaveBeenCalledWith(
+            "https://example.com/collect",
+            expect.objectContaining({
+                cid: "visitor-1",
+                vid: "visit-1",
+                tid: "tab-1",
+                isc: "persistent",
+                ct: "1767225600000",
+            }),
+        );
+    });
+
     test("should make a request when host is not empty", async () => {
         const client = new Client({
             siteId: "test-site",

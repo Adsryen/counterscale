@@ -93,6 +93,7 @@ export async function trackPageview(
     const { hostname, path } = getHostnameAndPath(url, true);
     const referrer = getBrowserReferrer(hostname, opts.referrer || "");
     const utmParams = getUtmParamsFromBrowserUrl(url);
+    const identityContext = client.identity.getContext();
 
     let hitType: string | undefined;
     try {
@@ -113,6 +114,7 @@ export async function trackPageview(
         referrer,
         utmParams,
         hitType,
+        identityContext,
     );
 
     makeRequest(client.reporterUrl, requestParams);

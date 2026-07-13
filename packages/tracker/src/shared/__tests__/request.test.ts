@@ -133,6 +133,40 @@ describe("Shared Request Utils", () => {
                 uco: "ad2",
             });
         });
+
+
+        it("should include optional identity parameters without adding IP fields", () => {
+            const result = buildCollectRequestParams(
+                "test-site",
+                "https://example.com",
+                "/path",
+                "",
+                {},
+                "1",
+                {
+                    visitorId: "visitor-1",
+                    visitId: "visit-1",
+                    tabId: "tab-1",
+                    identityScope: "persistent",
+                    clientTime: 1767225600000,
+                },
+            );
+
+            expect(result).toEqual({
+                p: "/path",
+                h: "https://example.com",
+                r: "",
+                sid: "test-site",
+                ht: "1",
+                cid: "visitor-1",
+                vid: "visit-1",
+                tid: "tab-1",
+                isc: "persistent",
+                ct: "1767225600000",
+            });
+            expect(result).not.toHaveProperty("ip");
+            expect(result).not.toHaveProperty("client_ip");
+        });
     });
 
     describe("buildCollectUrl", () => {

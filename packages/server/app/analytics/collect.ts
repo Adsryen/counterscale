@@ -155,6 +155,82 @@ function asFiniteNumber(value: unknown): number | undefined {
     return undefined;
 }
 
+const MAX_IDENTITY_ID_LENGTH = 128;
+const MAX_CLIENT_TIME_LENGTH = 32;
+const IDENTITY_SCOPES = new Set(["persistent", "mixed", "page"]);
+
+export type CollectIdentityScope = "persistent" | "mixed" | "page";
+
+export interface CollectIdentityParams {
+    visitorId?: string;
+    visitId?: string;
+    tabId?: string;
+    identityScope?: CollectIdentityScope;
+    clientTime?: number;
+}
+
+type CollectIdentityParseResult =
+    | { ok: true; identity?: CollectIdentityParams }
+    | { ok: false; message: string };
+
+function normalizeOptionalIdentityId(
+    value: string | undefined,
+    field: string,
+): { ok: true; value?: string } | { ok: false; message: string } {
+    if (value === undefined) {
+        return { ok: true };
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return { ok: true };
+    }
+
+    if (trimmed.length > MAX_IDENTITY_ID_LENGTH) {
+        return { ok: false, message: `${field} is too long` };
+    }
+
+    return { ok: true, value: trimmed };
+}
+
+export function parseCollectIdentityParams(params: {
+    [key: string]: string;
+}): CollectIdentityParseResult {
+    const visitorId = normalizeOptionalIdentityId(params.cid, "cid");
+    if (!visitorId.ok) return visitorId;
+
+    const visitId = normalizeOptionalIdentityId(params.vid, "vid");
+    if (!visitId.ok) return visitId;
+
+    const tabId = normalizeOptionalIdentityId(params.tid, "tid");
+    if (!tabId.ok) return tabId;
+
+    const identity: CollectIdentityParams = {};
+    if (visitorId.value) identity.visitorId = visitorId.value;
+    if (visitId.value) identity.visitId = visitId.value;
+    if (tabId.value) identity.tabId = tabId.value;
+
+    const rawScope = params.isc?.trim();
+    if (rawScope) {
+        if (!IDENTITY_SCOPES.has(rawScope)) {
+            return { ok: false, message: "Invalid identity scope" };
+        }
+        identity.identityScope = rawScope as CollectIdentityScope;
+    }
+
+    const rawClientTime = params.ct?.trim();
+    if (rawClientTime && rawClientTime.length <= MAX_CLIENT_TIME_LENGTH) {
+        const clientTime = Number(rawClientTime);
+        if (Number.isFinite(clientTime) && clientTime >= 0) {
+            identity.clientTime = clientTime;
+        }
+    }
+
+    return Object.keys(identity).length > 0
+        ? { ok: true, identity }
+        : { ok: true };
+}
+
 export function collectRequestHandler(
     request: Request,
     env: Env,
@@ -165,6 +241,11 @@ export function collectRequestHandler(
     const siteId = params.sid;
     if (!siteId || siteId === "") {
         return new Response("Missing siteId", { status: 400 });
+    }
+
+    const identityParams = parseCollectIdentityParams(params);
+    if (!identityParams.ok) {
+        return new Response(identityParams.message, { status: 400 });
     }
 
     const userAgent = request.headers.get("user-agent") || undefined;
@@ -224,6 +305,7 @@ export function collectRequestHandler(
         utmCampaign: params.uc,
         utmTerm: params.ut,
         utmContent: params.uco,
+        identity: identityParams.identity,
     };
 
     // Location is derived from Cloudflare edge geolocation — city/region level.
@@ -289,6 +371,10 @@ interface DataPoint {
     region?: string;
     city?: string;
     regionCode?: string;
+
+    // Parsed for request-contract compatibility. Persistence is owned by
+    // baidu-p0-ae-schema / baidu-p0-ip-geo, so these are not mapped to AE here.
+    identity?: CollectIdentityParams;
 
     // doubles
     newVisitor: number;

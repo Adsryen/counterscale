@@ -450,4 +450,114 @@ describe("collectRequestHandler", () => {
         expect(blobs[13]).toBe(""); // utm_term (empty)
         expect(blobs[14]).toBe(""); // utm_content (empty)
     });
+
+    test("accepts optional identity params without changing AE schema or trusting self-reported IP", () => {
+        const env = {
+            WEB_COUNTER_AE: {
+                writeDataPoint: vi.fn(),
+            } as AnalyticsEngineDataset,
+        } as Env;
+
+        const request = httpMocks.createRequest(
+            // @ts-expect-error - we're mocking the request object
+            generateRequestParams({
+                "user-agent":
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
+            }),
+        );
+        const url = new URL(request.url);
+        url.searchParams.set("cid", "visitor-123");
+        url.searchParams.set("vid", "visit-123");
+        url.searchParams.set("tid", "tab-123");
+        url.searchParams.set("isc", "persistent");
+        url.searchParams.set("ct", "1767225600000");
+        url.searchParams.set("ip", "203.0.113.10");
+        url.searchParams.set("client_ip", "198.51.100.20");
+        request.url = url.toString();
+
+        const response = collectRequestHandler(request as any, env, {
+            country: "US",
+        });
+
+        expect(response.status).toBe(200);
+        const writeDataPoint = env.WEB_COUNTER_AE.writeDataPoint;
+        expect(writeDataPoint).toHaveBeenCalled();
+        const datapoint = (writeDataPoint as Mock).mock.calls[0][0];
+        expect(datapoint.blobs).toHaveLength(18);
+        expect(datapoint.doubles).toHaveLength(5);
+        expect(datapoint.blobs).not.toContain("203.0.113.10");
+        expect(datapoint.blobs).not.toContain("198.51.100.20");
+    });
+
+    test("returns 400 for overlong identity ids", () => {
+        const env = {
+            WEB_COUNTER_AE: {
+                writeDataPoint: vi.fn(),
+            } as AnalyticsEngineDataset,
+        } as Env;
+
+        const request = httpMocks.createRequest(
+            // @ts-expect-error - we're mocking the request object
+            generateRequestParams({}),
+        );
+        const url = new URL(request.url);
+        url.searchParams.set("cid", "x".repeat(129));
+        request.url = url.toString();
+
+        const response = collectRequestHandler(request as any, env);
+
+        expect(response.status).toBe(400);
+        expect(env.WEB_COUNTER_AE.writeDataPoint).not.toHaveBeenCalled();
+    });
+
+    test("returns 400 for invalid identity scope", () => {
+        const env = {
+            WEB_COUNTER_AE: {
+                writeDataPoint: vi.fn(),
+            } as AnalyticsEngineDataset,
+        } as Env;
+
+        const request = httpMocks.createRequest(
+            // @ts-expect-error - we're mocking the request object
+            generateRequestParams({}),
+        );
+        const url = new URL(request.url);
+        url.searchParams.set("isc", "device");
+        request.url = url.toString();
+
+        const response = collectRequestHandler(request as any, env);
+
+        expect(response.status).toBe(400);
+        expect(env.WEB_COUNTER_AE.writeDataPoint).not.toHaveBeenCalled();
+    });
+
+    test("ignores abnormal client time and keeps server time as the cache header source", () => {
+        const env = {
+            WEB_COUNTER_AE: {
+                writeDataPoint: vi.fn(),
+            } as AnalyticsEngineDataset,
+        } as Env;
+        const request = httpMocks.createRequest(
+            // @ts-expect-error - we're mocking the request object
+            generateRequestParams({}),
+        );
+        const url = new URL(request.url);
+        url.searchParams.set("cid", "visitor-123");
+        url.searchParams.set("vid", "visit-123");
+        url.searchParams.set("tid", "tab-123");
+        url.searchParams.set("isc", "persistent");
+        url.searchParams.set("ct", "999999999999999999999999999999999999");
+        request.url = url.toString();
+
+        const response = collectRequestHandler(request as any, env);
+        const expectedLastModified = new Date(Date.now());
+        expectedLastModified.setHours(0, 0, 1, 0);
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get("Last-Modified")).toBe(
+            expectedLastModified.toUTCString(),
+        );
+        expect(env.WEB_COUNTER_AE.writeDataPoint).toHaveBeenCalled();
+    });
+
 });
