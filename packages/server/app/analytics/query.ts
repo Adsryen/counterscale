@@ -473,9 +473,15 @@ export class AnalyticsEngineAPI {
         tz?: string,
     ): Promise<Map<string[], AnalyticsCountResult>> {
         const columnsStr = columns.map((c) => ColumnMappings[c]).join(", ");
-        const columnsStrWithAliases = columns
-            .map((c) => ColumnMappings[c] + " as " + c)
-            .join(", ");
+        const columnsSelectSql = columns.length
+            ? ",\n                " +
+              columns
+                  .map((c) => ColumnMappings[c] + " as " + c)
+                  .join(",\n                ")
+            : "";
+        const columnsGroupBySql = columns.length
+            ? ",\n                " + columnsStr
+            : "";
 
         const startDateTimeSql = dayjs(startDateTime)
             .tz(tz)
@@ -487,20 +493,18 @@ export class AnalyticsEngineAPI {
             .format("YYYY-MM-DD HH:mm:ss");
 
         const query = `
-            SELECT 
-                timestamp,
+            SELECT
+                timestamp as date,
                 SUM(_sample_interval) as count,
-                ${ColumnMappings.siteId} as siteId, 
-                ${ColumnMappings.newVisitor} as isVisitor, 
-                ${ColumnMappings.bounce} as isBounce,
-                ${columnsStrWithAliases}
+                ${ColumnMappings.siteId} as siteId,
+                ${ColumnMappings.newVisitor} as isVisitor,
+                ${ColumnMappings.bounce} as isBounce${columnsSelectSql}
             FROM metricsDataset
             WHERE timestamp >= toDateTime('${startDateTimeSql}') AND timestamp < toDateTime('${endDateTimeSql}')
             GROUP BY timestamp,
-                ${ColumnMappings.siteId}, 
-                ${ColumnMappings.newVisitor}, 
-                ${ColumnMappings.bounce}, 
-                ${columnsStr}
+                ${ColumnMappings.siteId},
+                ${ColumnMappings.newVisitor},
+                ${ColumnMappings.bounce}${columnsGroupBySql}
             ORDER BY count DESC
         `;
 
@@ -522,25 +526,35 @@ export class AnalyticsEngineAPI {
                 (await response.json()) as AnalyticsQueryResult<SelectionSet>;
 
 
-            return responseData.data.reduce((acc, row) => {
-                // key is the comma joined string of siteId + all columns
+            const rowsByKey = responseData.data.reduce((acc, row) => {
                 const key = [
                     row.date,
                     row.siteId,
-                    ...columns.map((c) => String(row[c]).trim()),
+                    ...columns.map((c) => String(row[c] ?? "").trim()),
                 ];
+                const mapKey = JSON.stringify(key);
 
-                if (!acc.has(key)) {
-                    acc.set(key, {
-                        views: 0,
-                        visitors: 0,
-                        bounces: 0,
-                    } as AnalyticsCountResult);
+                if (!acc.has(mapKey)) {
+                    acc.set(mapKey, {
+                        key,
+                        counts: {
+                            views: 0,
+                            visitors: 0,
+                            bounces: 0,
+                        } as AnalyticsCountResult,
+                    });
                 }
 
-                accumulateCountsFromRowResult(acc.get(key)!, row);
+                accumulateCountsFromRowResult(acc.get(mapKey)!.counts, row);
                 return acc;
-            }, new Map<string[], AnalyticsCountResult>());
+            }, new Map<string, { key: string[]; counts: AnalyticsCountResult }>());
+
+            return new Map(
+                Array.from(rowsByKey.values()).map((row) => [
+                    row.key,
+                    row.counts,
+                ]),
+            );
         });
     }
 

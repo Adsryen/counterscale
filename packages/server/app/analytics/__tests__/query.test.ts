@@ -8,6 +8,7 @@ import {
     Mock,
     beforeAll,
 } from "vitest";
+import { readFileSync } from "node:fs";
 
 import { AnalyticsEngineAPI, intervalToSql } from "../query";
 
@@ -680,5 +681,70 @@ describe("intervalToSql", () => {
             startIntervalSql: "toDateTime('2024-04-29 04:00:00')",
             endIntervalSql: "toStartOfInterval(NOW(), INTERVAL '15' MINUTE)",
         });
+    });
+});
+
+
+describe("Analytics Engine schema and sampling contracts", () => {
+    const api = new AnalyticsEngineAPI(
+        "test_account_id_abc123",
+        "test_api_token_def456",
+    );
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    test("getAllCountsByAllColumnsForAllSites supports core rollups without dimensions", async () => {
+        const fetch = vi.fn().mockResolvedValue(
+            createFetchResponse({
+                data: [
+                    {
+                        date: "2026-07-12T00:00:00.000Z",
+                        siteId: "site-a",
+                        isVisitor: 1,
+                        isBounce: 1,
+                        count: 2,
+                    },
+                    {
+                        date: "2026-07-12T00:00:00.000Z",
+                        siteId: "site-a",
+                        isVisitor: 0,
+                        isBounce: 0,
+                        count: 3,
+                    },
+                ],
+            }),
+        ) as Mock;
+        global.fetch = fetch;
+
+        const result = await api.getAllCountsByAllColumnsForAllSites(
+            [],
+            new Date("2026-07-12T00:00:00Z"),
+            new Date("2026-07-13T00:00:00Z"),
+        );
+        const body = fetch.mock.calls[0][1].body as string;
+
+        expect(body).toContain("timestamp as date");
+        expect(body).toContain("SUM(_sample_interval) as count");
+        expect(body).not.toMatch(/isBounce,\s*FROM/);
+        expect(body).not.toMatch(/bounce,\s*ORDER BY/);
+        expect(Array.from(result.entries())).toEqual([
+            [
+                ["2026-07-12T00:00:00.000Z", "site-a"],
+                { views: 5, visitors: 2, bounces: 2 },
+            ],
+        ]);
+    });
+
+    test("query source does not use naked COUNT or uniq as true hit counters", () => {
+        const source = readFileSync(
+            new URL("../query.ts", import.meta.url),
+            "utf8",
+        );
+
+        expect(source).toContain("SUM(_sample_interval)");
+        expect(source).not.toMatch(/\bCOUNT\s*\(/i);
+        expect(source).not.toMatch(/\buniq\s*\(/i);
     });
 });

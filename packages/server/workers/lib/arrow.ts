@@ -3,34 +3,93 @@ import { ColumnMappings } from "../../app/analytics/schema";
 import { tableFromJSON, tableToIPC } from "apache-arrow";
 import dayjs from "dayjs";
 
-export async function extractAsArrow(
-    { accountId, bearerToken }: { accountId: string; bearerToken: string },
-    bucket: R2Bucket,
-) {
-    const api = new AnalyticsEngineAPI(accountId, bearerToken);
+type MetricsRollupDimension = Exclude<
+    keyof typeof ColumnMappings,
+    | "siteId"
+    | "newVisitor"
+    | "newSession"
+    | "bounce"
+    | "userAgent"
+    | "deviceModel"
+    | "browserVersion"
+    | "utmTerm"
+    | "utmContent"
+>;
 
-    // Get yesterday's date range
-    const yesterday = dayjs().subtract(1, "day");
-    const startDateTime = yesterday.startOf("day").toDate();
-    const endDateTime = yesterday.endOf("day").toDate();
+export interface MetricsRollupSpec {
+    id: string;
+    description: string;
+    dimensions: readonly MetricsRollupDimension[];
+    maxExpectedGroupsPerSite: number;
+}
 
-    // Get all columns we want to extract
-    const columns = Object.keys(ColumnMappings).filter(
-        (key) => key !== "siteId" && key !== "newVisitor" && key !== "bounce",
-    ) as (keyof typeof ColumnMappings)[];
+export const METRICS_V1_ROLLUP_SPECS = [
+    {
+        id: "core-daily",
+        description: "One row per timestamp/site with PV, legacy visitor and bounce counts.",
+        dimensions: [],
+        maxExpectedGroupsPerSite: 1,
+    },
+    {
+        id: "content-source-top",
+        description: "Content and source dimensions for Top N style reporting.",
+        dimensions: [
+            "host",
+            "path",
+            "referrer",
+            "utmSource",
+            "utmMedium",
+            "utmCampaign",
+        ],
+        maxExpectedGroupsPerSite: 5000,
+    },
+    {
+        id: "geo-device-top",
+        description: "Administrative geography and device/browser dimensions.",
+        dimensions: [
+            "country",
+            "region",
+            "city",
+            "regionCode",
+            "browserName",
+            "deviceType",
+        ],
+        maxExpectedGroupsPerSite: 2000,
+    },
+] as const satisfies readonly MetricsRollupSpec[];
 
-    // Fetch data for yesterday
-    const data = await api.getAllCountsByAllColumnsForAllSites(
-        columns,
-        startDateTime,
-        endDateTime,
-    );
+interface ArrowRollupRecord {
+    date: string;
+    siteId: string;
+    views: number;
+    visitors: number;
+    bounces: number;
+    [key: string]: string | number;
+}
 
-    // Convert Map to array of records for Arrow table creation
-    const records: any[] = [];
+export interface ArrowRollupFileResult {
+    specId: string;
+    filename: string;
+    recordCount: number;
+    dimensions: readonly MetricsRollupDimension[];
+}
+
+export interface ArrowRollupResult {
+    files: ArrowRollupFileResult[];
+    recordCount: number;
+    /** Backward-compatible pointer to the first generated file. */
+    filename: string;
+}
+
+function rowsToRecords(
+    data: Map<string[], { views: number; visitors: number; bounces: number }>,
+    dimensions: readonly MetricsRollupDimension[],
+): ArrowRollupRecord[] {
+    const records: ArrowRollupRecord[] = [];
+
     data.forEach((counts, key) => {
         const [date, siteId, ...columnValues] = key;
-        const record: any = {
+        const record: ArrowRollupRecord = {
             date,
             siteId,
             views: counts.views,
@@ -38,29 +97,58 @@ export async function extractAsArrow(
             bounces: counts.bounces,
         };
 
-        // Add column values
-        columns.forEach((column, index) => {
-            record[column] = columnValues[index];
+        dimensions.forEach((column, index) => {
+            record[column] = columnValues[index] || "";
         });
 
         records.push(record);
     });
 
-    // Create Arrow table from JSON records
-    const table = tableFromJSON(records);
+    return records;
+}
 
-    // Convert to Arrow IPC buffer
-    const arrowBuffer = new Uint8Array(tableToIPC(table, "file"));
+export async function extractAsArrow(
+    { accountId, bearerToken }: { accountId: string; bearerToken: string },
+    bucket: R2Bucket,
+): Promise<ArrowRollupResult> {
+    const api = new AnalyticsEngineAPI(accountId, bearerToken);
 
-    // Generate filename with yesterday's date
-    const filename = `analytics-${yesterday.format("YYYY-MM-DD")}.arrow`;
+    // Get yesterday's date range
+    const yesterday = dayjs().subtract(1, "day");
+    const startDateTime = yesterday.startOf("day").toDate();
+    const endDateTime = yesterday.endOf("day").toDate();
+    const dateKey = yesterday.format("YYYY-MM-DD");
 
-    // Save to R2
-    await bucket.put(filename, arrowBuffer);
+    const files: ArrowRollupFileResult[] = [];
 
-    console.log(`Saved ${records.length} records to ${filename}`);
+    for (const spec of METRICS_V1_ROLLUP_SPECS) {
+        const data = await api.getAllCountsByAllColumnsForAllSites(
+            [...spec.dimensions],
+            startDateTime,
+            endDateTime,
+        );
 
-    return { filename, recordCount: records.length };
+        const records = rowsToRecords(data, spec.dimensions);
+        const table = tableFromJSON(records);
+        const arrowBuffer = new Uint8Array(tableToIPC(table, "file"));
+        const filename = `analytics/v1/${spec.id}/${dateKey}.arrow`;
+
+        await bucket.put(filename, arrowBuffer);
+        console.log(`Saved ${records.length} ${spec.id} records to ${filename}`);
+
+        files.push({
+            specId: spec.id,
+            filename,
+            recordCount: records.length,
+            dimensions: spec.dimensions,
+        });
+    }
+
+    return {
+        files,
+        recordCount: files.reduce((total, file) => total + file.recordCount, 0),
+        filename: files[0]?.filename || "",
+    };
 }
 
 // IIFE for testing
