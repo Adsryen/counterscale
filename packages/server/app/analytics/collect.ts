@@ -1,6 +1,13 @@
 import type { AnalyticsEngineDataset } from "@cloudflare/workers-types";
 import { IDevice, UAParser } from "ua-parser-js";
 import { maskBrowserVersion } from "~/lib/utils";
+import { encryptIpAddress, type IpCryptoConfig } from "~/lib/ip-crypto";
+import { getSite, DEFAULT_IP_RETENTION_DAYS } from "~/lib/sites";
+import {
+    createSyntheticVisitId,
+    recordVisitAndPageview,
+    visitExists,
+} from "~/lib/visit-details";
 
 // Cookieless visitor/session tracking
 // Uses the approach described here: https://notes.normally.com/cookieless-unique-visitor-counts/
@@ -231,7 +238,28 @@ export function parseCollectIdentityParams(params: {
         : { ok: true };
 }
 
-export function collectRequestHandler(
+function getTrustedClientIp(request: Request): string | undefined {
+    // At the Cloudflare edge these headers are owned/overwritten by Cloudflare.
+    // Do not read tracker query params or generic X-Forwarded-For for raw IP detail.
+    return (
+        asTrimmedString(request.headers.get("CF-Connecting-IP")) ??
+        asTrimmedString(request.headers.get("True-Client-IP"))
+    );
+}
+
+function getIpCryptoConfig(env: Env): IpCryptoConfig | null {
+    if (!env.CF_IP_ENCRYPTION_KEY || !env.CF_IP_HMAC_KEY) return null;
+    const keyVersion = Number(env.CF_IP_KEY_VERSION || "1");
+    return {
+        encryptionKey: env.CF_IP_ENCRYPTION_KEY,
+        hmacKey: env.CF_IP_HMAC_KEY,
+        keyVersion: Number.isInteger(keyVersion) && keyVersion > 0
+            ? keyVersion
+            : 1,
+    };
+}
+
+export async function collectRequestHandler(
     request: Request,
     env: Env,
     extra: CollectGeoExtra = {}, // Cloudflare request.cf geolocation properties
@@ -317,6 +345,44 @@ export function collectRequestHandler(
     data.regionCode = asTrimmedString(extra?.regionCode);
     data.latitude = asFiniteNumber(extra?.latitude);
     data.longitude = asFiniteNumber(extra?.longitude);
+
+    if (env.DB) {
+        const site = await getSite(env.DB, siteId);
+        const recordIp = site?.recordIp ?? true;
+        const retentionDays = site?.ipRetentionDays ?? DEFAULT_IP_RETENTION_DAYS;
+        const visitId = identityParams.identity?.visitId ?? createSyntheticVisitId();
+        const existingVisit = await visitExists(env.DB, siteId, visitId);
+        let encryptedIp;
+
+        if (recordIp && !existingVisit) {
+            const rawIp = getTrustedClientIp(request);
+            const cryptoConfig = rawIp ? getIpCryptoConfig(env) : null;
+            if (rawIp && cryptoConfig) {
+                encryptedIp = await encryptIpAddress(rawIp, cryptoConfig);
+            }
+        }
+
+        await recordVisitAndPageview(env.DB, {
+            siteId,
+            visitId,
+            visitorId: identityParams.identity?.visitorId,
+            tabId: identityParams.identity?.tabId,
+            identityScope: identityParams.identity?.identityScope,
+            clientTime: identityParams.identity?.clientTime,
+            retentionDays,
+            host: params.h,
+            path: params.p,
+            referrer: params.r,
+            userAgent,
+            country: data.country,
+            region: data.region,
+            city: data.city,
+            regionCode: data.regionCode,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            encryptedIp,
+        });
+    }
 
     writeDataPoint(env.WEB_COUNTER_AE, data);
 

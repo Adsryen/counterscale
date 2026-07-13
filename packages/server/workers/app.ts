@@ -13,6 +13,7 @@ import { createRequestHandler, type ServerBuild } from "react-router";
 import { getLoadContext } from "../app/load-context";
 import * as build from "../build/server";
 import { extractAsArrow } from "./lib/arrow";
+import { deleteExpiredVisitDetails } from "../app/lib/visit-details";
 
 const requestHandler = createRequestHandler(build as unknown as ServerBuild);
 
@@ -22,17 +23,21 @@ export default {
         env: Env,
         ctx: ExecutionContext,
     ) {
-        if (env.CF_STORAGE_ENABLED === "false") return
         try {
-            ctx.waitUntil(
-                extractAsArrow(
-                    {
-                        accountId: env.CF_ACCOUNT_ID,
-                        bearerToken: env.CF_BEARER_TOKEN,
-                    },
-                    env.DAILY_ROLLUPS,
-                ),
-            );
+            if (env.CF_STORAGE_ENABLED !== "false") {
+                ctx.waitUntil(
+                    extractAsArrow(
+                        {
+                            accountId: env.CF_ACCOUNT_ID,
+                            bearerToken: env.CF_BEARER_TOKEN,
+                        },
+                        env.DAILY_ROLLUPS,
+                    ),
+                );
+            }
+            if (env.DB) {
+                ctx.waitUntil(deleteExpiredVisitDetails(env.DB));
+            }
         } catch (error) {
             console.error(error);
         }

@@ -4,6 +4,10 @@ export type Site = {
     enabled: boolean;
     /** When true, anonymous users may view this site on /dashboard */
     publicStats: boolean;
+    /** When true, store encrypted raw IP detail for new visits. */
+    recordIp: boolean;
+    /** Raw IP/detail retention window in days. */
+    ipRetentionDays: number;
     allowedHosts: string | null;
     createdAt: string;
     updatedAt: string;
@@ -14,6 +18,8 @@ export type SiteInput = {
     name: string;
     enabled?: boolean;
     publicStats?: boolean;
+    recordIp?: boolean;
+    ipRetentionDays?: number;
     allowedHosts?: string | null;
 };
 
@@ -21,6 +27,8 @@ export type SitePatch = {
     name?: string;
     enabled?: boolean;
     publicStats?: boolean;
+    recordIp?: boolean;
+    ipRetentionDays?: number;
     allowedHosts?: string | null;
 };
 
@@ -29,6 +37,8 @@ type SiteRow = {
     name: string;
     enabled: number;
     public_stats?: number | null;
+    record_ip?: number | null;
+    ip_retention_days?: number | null;
     allowed_hosts: string | null;
     created_at: string;
     updated_at: string;
@@ -54,6 +64,11 @@ function rowToSite(row: SiteRow): Site {
         publicStats: row.public_stats === undefined || row.public_stats === null
             ? true
             : row.public_stats === 1,
+        // Default enabled for pre-0003 rows so existing sites start collecting IP detail.
+        recordIp: row.record_ip === undefined || row.record_ip === null
+            ? true
+            : row.record_ip === 1,
+        ipRetentionDays: normalizeIpRetentionDays(row.ip_retention_days),
         allowedHosts: row.allowed_hosts,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -64,7 +79,28 @@ function nowIso(): string {
     return new Date().toISOString();
 }
 
-const SITE_SELECT = `SELECT site_id, name, enabled, public_stats, allowed_hosts, created_at, updated_at
+export const DEFAULT_IP_RETENTION_DAYS = 60;
+export const MIN_IP_RETENTION_DAYS = 1;
+export const MAX_IP_RETENTION_DAYS = 365;
+
+export function normalizeIpRetentionDays(value: unknown): number {
+    if (value === undefined || value === null || value === "") {
+        return DEFAULT_IP_RETENTION_DAYS;
+    }
+    const n = typeof value === "number" ? value : Number(value);
+    if (
+        !Number.isInteger(n) ||
+        n < MIN_IP_RETENTION_DAYS ||
+        n > MAX_IP_RETENTION_DAYS
+    ) {
+        throw new Error(
+            `IP retention days must be an integer between ${MIN_IP_RETENTION_DAYS} and ${MAX_IP_RETENTION_DAYS}`,
+        );
+    }
+    return n;
+}
+
+const SITE_SELECT = `SELECT site_id, name, enabled, public_stats, record_ip, ip_retention_days, allowed_hosts, created_at, updated_at
              FROM sites`;
 
 export async function listSites(db: D1Database): Promise<Site[]> {
@@ -128,6 +164,9 @@ export async function createSite(
     const enabled = input.enabled === false ? 0 : 1;
     // Default: public (anonymous dashboard), matching upstream open analytics
     const publicStats = input.publicStats === false ? 0 : 1;
+    // Default: enabled because this single-admin analytics product is expected to collect detail unless explicitly disabled.
+    const recordIp = input.recordIp === false ? 0 : 1;
+    const ipRetentionDays = normalizeIpRetentionDays(input.ipRetentionDays);
     const allowedHosts =
         input.allowedHosts === undefined || input.allowedHosts === null
             ? null
@@ -135,10 +174,20 @@ export async function createSite(
 
     await db
         .prepare(
-            `INSERT INTO sites (site_id, name, enabled, public_stats, allowed_hosts, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO sites (site_id, name, enabled, public_stats, record_ip, ip_retention_days, allowed_hosts, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .bind(siteId, name, enabled, publicStats, allowedHosts, ts, ts)
+        .bind(
+            siteId,
+            name,
+            enabled,
+            publicStats,
+            recordIp,
+            ipRetentionDays,
+            allowedHosts,
+            ts,
+            ts,
+        )
         .run();
 
     const created = await getSite(db, siteId);
@@ -170,6 +219,12 @@ export async function updateSite(
         patch.publicStats !== undefined
             ? patch.publicStats
             : current.publicStats;
+    const recordIp =
+        patch.recordIp !== undefined ? patch.recordIp : current.recordIp;
+    const ipRetentionDays =
+        patch.ipRetentionDays !== undefined
+            ? normalizeIpRetentionDays(patch.ipRetentionDays)
+            : current.ipRetentionDays;
     const allowedHosts =
         patch.allowedHosts !== undefined
             ? patch.allowedHosts === null
@@ -181,13 +236,15 @@ export async function updateSite(
     await db
         .prepare(
             `UPDATE sites
-             SET name = ?, enabled = ?, public_stats = ?, allowed_hosts = ?, updated_at = ?
+             SET name = ?, enabled = ?, public_stats = ?, record_ip = ?, ip_retention_days = ?, allowed_hosts = ?, updated_at = ?
              WHERE site_id = ?`,
         )
         .bind(
             name,
             enabled ? 1 : 0,
             publicStats ? 1 : 0,
+            recordIp ? 1 : 0,
+            ipRetentionDays,
             allowedHosts,
             ts,
             siteId,
@@ -205,6 +262,14 @@ export async function deleteSite(
     db: D1Database,
     siteId: string,
 ): Promise<void> {
+    // Visit details intentionally allow AE-discovered sites without a registry row;
+    // clean them explicitly when a registry site is removed.
+    try {
+        await db.prepare(`DELETE FROM visits WHERE site_id = ?`).bind(siteId).run();
+    } catch {
+        // Pre-0003 databases may not have visit details yet.
+    }
+
     const result = await db
         .prepare(`DELETE FROM sites WHERE site_id = ?`)
         .bind(siteId)

@@ -48,6 +48,8 @@ export type SiteListItem = {
     name: string;
     enabled: boolean;
     publicStats: boolean;
+    recordIp: boolean;
+    ipRetentionDays: number;
     allowedHosts: string | null;
     createdAt: string;
     updatedAt: string;
@@ -136,6 +138,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
             name: siteId,
             enabled: true,
             publicStats: true,
+            recordIp: true,
+            ipRetentionDays: 60,
             allowedHosts: null,
             createdAt: "",
             updatedAt: "",
@@ -187,6 +191,9 @@ export async function action({
             const siteId = String(form.get("siteId") || "");
             const name = String(form.get("name") || siteId || "");
             const allowedHosts = String(form.get("allowedHosts") || "");
+            const recordIp =
+                intent === "import" ? true : form.get("recordIp") === "on";
+            const ipRetentionDays = Number(form.get("ipRetentionDays") || "60");
             const isPublic =
                 intent === "import"
                     ? true
@@ -198,6 +205,8 @@ export async function action({
                 name: name.trim() || siteId,
                 allowedHosts: allowedHosts || null,
                 publicStats: isPublic,
+                recordIp,
+                ipRetentionDays,
             });
             throw redirect(
                 `/console/sites/${encodeURIComponent(created.siteId)}?created=1`,
@@ -209,11 +218,15 @@ export async function action({
             const name = String(form.get("name") || "");
             const enabled = form.get("enabled") === "on";
             const publicStats = form.get("publicStats") === "on";
+            const recordIp = form.get("recordIp") === "on";
+            const ipRetentionDays = Number(form.get("ipRetentionDays") || "60");
             const allowedHosts = String(form.get("allowedHosts") || "");
             await updateSite(db, siteId, {
                 name,
                 enabled,
                 publicStats,
+                recordIp,
+                ipRetentionDays,
                 allowedHosts: allowedHosts || null,
             });
             return {
@@ -387,8 +400,32 @@ function SiteRow({
                             />
                             {t("admin.publicStats")}
                         </label>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    name="recordIp"
+                                    defaultChecked={site.recordIp}
+                                />
+                                {t("admin.recordIp")}
+                            </label>
+                            <label className="text-sm font-medium">
+                                {t("admin.ipRetentionDays")}
+                                <input
+                                    type="number"
+                                    name="ipRetentionDays"
+                                    min={1}
+                                    max={365}
+                                    defaultValue={site.ipRetentionDays}
+                                    className="mt-1 w-full px-3 py-2 border border-input rounded-xl shadow-sm bg-background"
+                                />
+                            </label>
+                        </div>
                         <p className="text-xs text-muted-foreground">
                             {t("admin.publicStatsHelp")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {t("admin.recordIpHelp")}
                         </p>
                         <div className="flex flex-wrap gap-2">
                             <Button
@@ -656,8 +693,32 @@ export default function AdminSites() {
                             />
                             {t("admin.publicStats")}
                         </label>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    name="recordIp"
+                                    defaultChecked
+                                />
+                                {t("admin.recordIp")}
+                            </label>
+                            <label className="text-sm font-medium">
+                                {t("admin.ipRetentionDays")}
+                                <input
+                                    type="number"
+                                    name="ipRetentionDays"
+                                    min={1}
+                                    max={365}
+                                    defaultValue={60}
+                                    className="mt-1 w-full px-3 py-2 border border-input rounded-xl shadow-sm bg-background"
+                                />
+                            </label>
+                        </div>
                         <p className="text-xs text-muted-foreground">
                             {t("admin.publicStatsHelp")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {t("admin.recordIpHelp")}
                         </p>
                         <Button
                             type="submit"

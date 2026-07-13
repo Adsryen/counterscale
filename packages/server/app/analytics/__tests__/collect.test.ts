@@ -41,7 +41,7 @@ function generateRequestParams(headers: Record<string, string>) {
 }
 
 describe("collectRequestHandler", () => {
-    test("returns 400 when siteId is missing", () => {
+    test("returns 400 when siteId is missing", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -62,12 +62,12 @@ describe("collectRequestHandler", () => {
                 ns: "1",
             }).toString();
 
-        const response = collectRequestHandler(request as any, env);
+        const response = await collectRequestHandler(request as any, env);
         expect(response.status).toBe(400);
         expect(env.WEB_COUNTER_AE.writeDataPoint).not.toHaveBeenCalled();
     });
 
-    test("returns 400 when siteId is empty string", () => {
+    test("returns 400 when siteId is empty string", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -89,7 +89,7 @@ describe("collectRequestHandler", () => {
                 ns: "1",
             }).toString();
 
-        const response = collectRequestHandler(request as any, env);
+        const response = await collectRequestHandler(request as any, env);
         expect(response.status).toBe(400);
         expect(env.WEB_COUNTER_AE.writeDataPoint).not.toHaveBeenCalled();
     });
@@ -99,7 +99,7 @@ describe("collectRequestHandler", () => {
         vi.setSystemTime(new Date("2024-01-18T09:33:02").getTime());
     });
 
-    test("invokes writeDataPoint with transformed params", () => {
+    test("invokes writeDataPoint with transformed params", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -109,7 +109,7 @@ describe("collectRequestHandler", () => {
         // @ts-expect-error - we're mocking the request object
         const request = httpMocks.createRequest(defaultRequestParams);
 
-        collectRequestHandler(request as any, env, {
+        await collectRequestHandler(request as any, env, {
             country: "US",
             region: "California",
             city: "San Francisco",
@@ -156,7 +156,7 @@ describe("collectRequestHandler", () => {
         });
     });
 
-    test("if-modified-since is absent", () => {
+    test("if-modified-since is absent", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -166,7 +166,7 @@ describe("collectRequestHandler", () => {
         // @ts-expect-error - we're mocking the request object
         const request = httpMocks.createRequest(generateRequestParams({}));
 
-        collectRequestHandler(request as any, env);
+        await collectRequestHandler(request as any, env);
 
         const writeDataPoint = env.WEB_COUNTER_AE.writeDataPoint;
         expect((writeDataPoint as Mock).mock.calls[0][0]).toHaveProperty(
@@ -181,7 +181,7 @@ describe("collectRequestHandler", () => {
         );
     });
 
-    test("if-modified-since is within 30 minutes", () => {
+    test("if-modified-since is within 30 minutes", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -197,7 +197,7 @@ describe("collectRequestHandler", () => {
             }),
         );
 
-        collectRequestHandler(request as any, env);
+        await collectRequestHandler(request as any, env);
 
         const writeDataPoint = env.WEB_COUNTER_AE.writeDataPoint;
         expect((writeDataPoint as Mock).mock.calls[0][0]).toHaveProperty(
@@ -212,7 +212,7 @@ describe("collectRequestHandler", () => {
         );
     });
 
-    test("if-modified since is within 30 minutes but over day boundary", () => {
+    test("if-modified since is within 30 minutes but over day boundary", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -233,7 +233,7 @@ describe("collectRequestHandler", () => {
             }),
         );
 
-        collectRequestHandler(request as any, env);
+        await collectRequestHandler(request as any, env);
 
         const writeDataPoint = env.WEB_COUNTER_AE.writeDataPoint;
         expect((writeDataPoint as Mock).mock.calls[0][0]).toHaveProperty(
@@ -248,7 +248,7 @@ describe("collectRequestHandler", () => {
         );
     });
 
-    test("if-modified-since is over 30 days ago", () => {
+    test("if-modified-since is over 30 days ago", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -264,7 +264,7 @@ describe("collectRequestHandler", () => {
             }),
         );
 
-        collectRequestHandler(request as any, env);
+        await collectRequestHandler(request as any, env);
 
         const writeDataPoint = env.WEB_COUNTER_AE.writeDataPoint;
         expect((writeDataPoint as Mock).mock.calls[0][0]).toHaveProperty(
@@ -279,7 +279,7 @@ describe("collectRequestHandler", () => {
         );
     });
 
-    test("if-modified-since was yesterday", () => {
+    test("if-modified-since was yesterday", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -295,7 +295,7 @@ describe("collectRequestHandler", () => {
             }),
         );
 
-        collectRequestHandler(request as any, env);
+        await collectRequestHandler(request as any, env);
 
         const writeDataPoint = env.WEB_COUNTER_AE.writeDataPoint;
         expect((writeDataPoint as Mock).mock.calls[0][0]).toHaveProperty(
@@ -310,7 +310,7 @@ describe("collectRequestHandler", () => {
         );
     });
 
-    test("if-modified-since is one second after midnight", () => {
+    test("if-modified-since is one second after midnight", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -334,7 +334,7 @@ describe("collectRequestHandler", () => {
             }),
         );
 
-        collectRequestHandler(request as any, env);
+        await collectRequestHandler(request as any, env);
 
         const writeDataPoint = env.WEB_COUNTER_AE.writeDataPoint;
         expect((writeDataPoint as Mock).mock.calls[0][0]).toHaveProperty(
@@ -349,7 +349,7 @@ describe("collectRequestHandler", () => {
         );
     });
 
-    test("if-modified-since is two seconds after midnight", () => {
+    test("if-modified-since is two seconds after midnight", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -375,7 +375,7 @@ describe("collectRequestHandler", () => {
             }),
         );
 
-        collectRequestHandler(request as any, env);
+        await collectRequestHandler(request as any, env);
 
         const writeDataPoint = env.WEB_COUNTER_AE.writeDataPoint;
         expect((writeDataPoint as Mock).mock.calls[0][0]).toHaveProperty(
@@ -390,7 +390,7 @@ describe("collectRequestHandler", () => {
         );
     });
 
-    test("handles UTM parameters correctly", () => {
+    test("handles UTM parameters correctly", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -402,7 +402,7 @@ describe("collectRequestHandler", () => {
                 "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
         });
 
-        collectRequestHandler(request as any, env, {
+        await collectRequestHandler(request as any, env, {
             country: "US",
         });
 
@@ -417,7 +417,7 @@ describe("collectRequestHandler", () => {
         expect(blobs[14]).toBe("ad1"); // utm_content
     });
 
-    test("handles missing UTM parameters gracefully", () => {
+    test("handles missing UTM parameters gracefully", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -436,7 +436,7 @@ describe("collectRequestHandler", () => {
             .replace(/&ut=[^&]*/, "")
             .replace(/&uco=[^&]*/, "");
 
-        collectRequestHandler(request as any, env, {
+        await collectRequestHandler(request as any, env, {
             country: "US",
         });
 
@@ -451,7 +451,7 @@ describe("collectRequestHandler", () => {
         expect(blobs[14]).toBe(""); // utm_content (empty)
     });
 
-    test("accepts optional identity params without changing AE schema or trusting self-reported IP", () => {
+    test("accepts optional identity params without changing AE schema or trusting self-reported IP", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -475,7 +475,7 @@ describe("collectRequestHandler", () => {
         url.searchParams.set("client_ip", "198.51.100.20");
         request.url = url.toString();
 
-        const response = collectRequestHandler(request as any, env, {
+        const response = await collectRequestHandler(request as any, env, {
             country: "US",
         });
 
@@ -489,7 +489,7 @@ describe("collectRequestHandler", () => {
         expect(datapoint.blobs).not.toContain("198.51.100.20");
     });
 
-    test("returns 400 for overlong identity ids", () => {
+    test("returns 400 for overlong identity ids", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -504,13 +504,13 @@ describe("collectRequestHandler", () => {
         url.searchParams.set("cid", "x".repeat(129));
         request.url = url.toString();
 
-        const response = collectRequestHandler(request as any, env);
+        const response = await collectRequestHandler(request as any, env);
 
         expect(response.status).toBe(400);
         expect(env.WEB_COUNTER_AE.writeDataPoint).not.toHaveBeenCalled();
     });
 
-    test("returns 400 for invalid identity scope", () => {
+    test("returns 400 for invalid identity scope", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -525,13 +525,13 @@ describe("collectRequestHandler", () => {
         url.searchParams.set("isc", "device");
         request.url = url.toString();
 
-        const response = collectRequestHandler(request as any, env);
+        const response = await collectRequestHandler(request as any, env);
 
         expect(response.status).toBe(400);
         expect(env.WEB_COUNTER_AE.writeDataPoint).not.toHaveBeenCalled();
     });
 
-    test("ignores abnormal client time and keeps server time as the cache header source", () => {
+    test("ignores abnormal client time and keeps server time as the cache header source", async () => {
         const env = {
             WEB_COUNTER_AE: {
                 writeDataPoint: vi.fn(),
@@ -549,7 +549,7 @@ describe("collectRequestHandler", () => {
         url.searchParams.set("ct", "999999999999999999999999999999999999");
         request.url = url.toString();
 
-        const response = collectRequestHandler(request as any, env);
+        const response = await collectRequestHandler(request as any, env);
         const expectedLastModified = new Date(Date.now());
         expectedLastModified.setHours(0, 0, 1, 0);
 

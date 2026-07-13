@@ -44,6 +44,8 @@ export default function ConsoleSiteHub() {
     const name = site?.name || siteId;
     const enabled = site ? site.enabled : true;
     const publicStats = site ? site.publicStats : true;
+    const recordIp = site ? site.recordIp : true;
+    const ipRetentionDays = site ? site.ipRetentionDays : 60;
 
     const codeHref = `/console/sites/${encodeURIComponent(siteId)}/code`;
     const analyticsHref = `/console/sites/${encodeURIComponent(siteId)}/analytics`;
@@ -86,6 +88,13 @@ export default function ConsoleSiteHub() {
                                 {publicStats
                                     ? t("admin.publicStatsOn")
                                     : t("admin.publicStatsOff")}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                                {recordIp
+                                    ? t("admin.recordIpOn")
+                                    : t("admin.recordIpOff")}
+                                {" / "}
+                                {t("admin.ipRetentionDaysShort", { days: ipRetentionDays })}
                             </span>
                         </>
                     ) : (
@@ -155,6 +164,15 @@ export default function ConsoleSiteHub() {
                             )}
                         >
                             {t("console.site.consoleAnalytics")}
+                        </a>
+                        <a
+                            href={`/console/sites/${encodeURIComponent(siteId)}/visitors`}
+                            className={cn(
+                                buttonVariants({ variant: "outline" }),
+                                "rounded-xl",
+                            )}
+                        >
+                            {t("console.site.visitors")}
                         </a>
                     </CardContent>
                 </Card>

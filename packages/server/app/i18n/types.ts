@@ -79,6 +79,12 @@ export type Messages = {
         publicStatsHelp: string;
         publicStatsOn: string;
         publicStatsOff: string;
+        recordIp: string;
+        recordIpHelp: string;
+        recordIpOn: string;
+        recordIpOff: string;
+        ipRetentionDays: string;
+        ipRetentionDaysShort: string;
         disabled: string;
         snippet: string;
         dashboard: string;
@@ -203,6 +209,7 @@ export type Messages = {
             codeTitle: string;
             codeDesc: string;
             analyticsTitle: string;
+            visitors: string;
             analyticsDesc: string;
             discoveredBadge: string;
             discoveredHint: string;

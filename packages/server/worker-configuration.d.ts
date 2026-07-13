@@ -10,6 +10,9 @@ declare namespace Cloudflare {
 		CF_AUTH_ENABLED: string;
 		CF_TRACKER_SCRIPT_NAME: string;
 		CF_STORAGE_ENABLED: string;
+		CF_IP_ENCRYPTION_KEY: string;
+		CF_IP_HMAC_KEY: string;
+		CF_IP_KEY_VERSION: string;
 		DAILY_ROLLUPS: R2Bucket;
 		WEB_COUNTER_AE: AnalyticsEngineDataset;
 		ASSETS: Fetcher;

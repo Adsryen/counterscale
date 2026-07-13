@@ -14,7 +14,9 @@ type Row = {
     site_id: string;
     name: string;
     enabled: number;
-    public_stats: number;
+    public_stats?: number | null;
+    record_ip?: number | null;
+    ip_retention_days?: number | null;
     allowed_hosts: string | null;
     created_at: string;
     updated_at: string;
@@ -61,12 +63,16 @@ function createMemoryD1(initial: Row[] = []) {
                         name,
                         enabled,
                         public_stats,
+                        record_ip,
+                        ip_retention_days,
                         allowed_hosts,
                         created_at,
                         updated_at,
                     ] = binds as [
                         string,
                         string,
+                        number,
+                        number,
                         number,
                         number,
                         string | null,
@@ -81,6 +87,8 @@ function createMemoryD1(initial: Row[] = []) {
                         name,
                         enabled,
                         public_stats,
+                        record_ip,
+                        ip_retention_days,
                         allowed_hosts,
                         created_at,
                         updated_at,
@@ -92,11 +100,15 @@ function createMemoryD1(initial: Row[] = []) {
                         name,
                         enabled,
                         public_stats,
+                        record_ip,
+                        ip_retention_days,
                         allowed_hosts,
                         updated_at,
                         site_id,
                     ] = binds as [
                         string,
+                        number,
+                        number,
                         number,
                         number,
                         string | null,
@@ -110,10 +122,15 @@ function createMemoryD1(initial: Row[] = []) {
                         name,
                         enabled,
                         public_stats,
+                        record_ip,
+                        ip_retention_days,
                         allowed_hosts,
                         updated_at,
                     });
                     return { meta: { changes: 1 } };
+                }
+                if (sql.startsWith("DELETE FROM visits")) {
+                    return { meta: { changes: 0 } };
                 }
                 if (sql.startsWith("DELETE")) {
                     const site_id = String(binds[0]);
@@ -141,7 +158,7 @@ describe("sites helpers", () => {
         expect(sanitizeSiteId("")).toBe("");
     });
 
-    test("create defaults publicStats true", async () => {
+    test("create defaults publicStats and raw IP retention settings", async () => {
         const db = createMemoryD1();
         const created = await createSite(db, {
             siteId: "blog",
@@ -149,6 +166,29 @@ describe("sites helpers", () => {
         });
         expect(created.publicStats).toBe(true);
         expect(created.enabled).toBe(true);
+        expect(created.recordIp).toBe(true);
+        expect(created.ipRetentionDays).toBe(60);
+    });
+
+    test("normalizes and validates raw IP retention settings", async () => {
+        const db = createMemoryD1();
+        await createSite(db, {
+            siteId: "shop",
+            name: "Shop",
+            recordIp: false,
+            ipRetentionDays: 365,
+        });
+
+        const disabled = await getSite(db, "shop");
+        expect(disabled?.recordIp).toBe(false);
+        expect(disabled?.ipRetentionDays).toBe(365);
+
+        await expect(
+            updateSite(db, "shop", { ipRetentionDays: 366 }),
+        ).rejects.toThrow(/retention/i);
+        await expect(
+            updateSite(db, "shop", { ipRetentionDays: 0 }),
+        ).rejects.toThrow(/retention/i);
     });
 
     test("listPublicSites filters private", async () => {
