@@ -3,7 +3,6 @@ import {
     getFiltersFromSearchParams,
     paramsFromUrl,
     getIntervalType,
-    getDateTimeRange,
 } from "~/lib/utils";
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
@@ -13,6 +12,40 @@ import type { ViewsGroupedByInterval } from "~/analytics/query";
 import { assertCanViewSiteStats } from "~/lib/siteAccess";
 import { ChartShell } from "~/components/analytics/ChartShell";
 import { useLocale } from "~/i18n/LocaleContext";
+import { buildComparisonWindows } from "~/analytics/comparison";
+
+type TrendChartPoint = {
+    date: string;
+    views: number;
+    visitors: number;
+    bounceRate: number;
+    previousViews?: number;
+    previousVisitors?: number;
+    previousBounceRate?: number;
+};
+
+function countsToBounceRate({
+    visitors,
+    bounces,
+}: {
+    visitors: number;
+    bounces: number;
+}) {
+    return Math.floor((visitors > 0 ? bounces / visitors : 0) * 100);
+}
+
+function hasSufficientBounceCoverage(
+    earliestEvent: Date | null,
+    earliestBounce: Date | null,
+    windowStart: Date,
+) {
+    return (
+        earliestBounce !== null &&
+        earliestEvent !== null &&
+        (earliestEvent.getTime() === earliestBounce.getTime() ||
+            earliestBounce.getTime() <= windowStart.getTime())
+    );
+}
 
 export async function loader({
     context,
@@ -36,35 +69,64 @@ export async function loader({
     const filters = getFiltersFromSearchParams(url.searchParams);
 
     const intervalType = getIntervalType(interval);
-    const { startDate, endDate } = getDateTimeRange(interval, tz);
+    const windows = buildComparisonWindows(interval, tz);
 
-    const viewsGroupedByInterval: ViewsGroupedByInterval =
-        await analyticsEngine.getViewsGroupedByInterval(
+    const currentRowsPromise: Promise<ViewsGroupedByInterval> =
+        analyticsEngine.getViewsGroupedByInterval(
             site,
             intervalType,
-            startDate,
-            endDate,
+            windows.current.startDate,
+            windows.current.endDate,
             tz,
             filters,
         );
+    const previousRowsPromise: Promise<ViewsGroupedByInterval> =
+        analyticsEngine.getViewsGroupedByInterval(
+            site,
+            intervalType,
+            windows.previous.startDate,
+            windows.previous.endDate,
+            tz,
+            filters,
+        );
+    const earliestEventsPromise = analyticsEngine.getEarliestEvents(site);
 
-    const chartData: {
-        date: string;
-        views: number;
-        visitors: number;
-        bounceRate: number;
-    }[] = [];
-    viewsGroupedByInterval.forEach((row) => {
+    const [
+        viewsGroupedByInterval,
+        previousGroupedByInterval,
+        { earliestEvent, earliestBounce },
+    ] = await Promise.all([
+        currentRowsPromise,
+        previousRowsPromise,
+        earliestEventsPromise,
+    ]);
+    const hasSufficientPreviousBounceData = hasSufficientBounceCoverage(
+        earliestEvent,
+        earliestBounce,
+        windows.previous.startDate,
+    );
+
+    const chartData: TrendChartPoint[] = [];
+    viewsGroupedByInterval.forEach((row, index) => {
         const { views, visitors, bounces } = row[1];
+        const previousCounts = previousGroupedByInterval[index]?.[1];
 
-        chartData.push({
+        const point: TrendChartPoint = {
             date: row[0],
             views,
             visitors,
-            bounceRate: Math.floor(
-                (visitors > 0 ? bounces / visitors : 0) * 100,
-            ),
-        });
+            bounceRate: countsToBounceRate({ visitors, bounces }),
+        };
+
+        if (previousCounts) {
+            point.previousViews = previousCounts.views;
+            point.previousVisitors = previousCounts.visitors;
+            if (hasSufficientPreviousBounceData) {
+                point.previousBounceRate = countsToBounceRate(previousCounts);
+            }
+        }
+
+        chartData.push(point);
     });
 
     return {
@@ -88,12 +150,17 @@ export const TimeSeriesCard = ({
     const { chartData, intervalType } = dataFetcher.data || {};
 
     useEffect(() => {
-        const params = {
+        const params = new URLSearchParams({
             site: siteId,
             interval,
             timezone,
-            ...filters,
-        };
+        });
+
+        Object.entries(filters ?? {}).forEach(([key, value]) => {
+            if (value !== undefined) {
+                params.set(key, value);
+            }
+        });
 
         dataFetcher.submit(params, {
             method: "get",

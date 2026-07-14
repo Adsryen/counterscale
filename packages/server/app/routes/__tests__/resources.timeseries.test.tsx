@@ -26,13 +26,38 @@ describe("resources.timeseries loader", () => {
     const { context } = getDefaultContext();
 
     beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-07-14T12:00:00Z"));
         vi.spyOn(
             context.analyticsEngine,
             "getViewsGroupedByInterval",
-        ).mockResolvedValue([
-            ["2024-01-15T00:00:00Z", { views: 100, visitors: 0, bounces: 0 }],
-            ["2024-01-16T00:00:00Z", { views: 200, visitors: 0, bounces: 0 }],
-        ]);
+        )
+            .mockResolvedValueOnce([
+                [
+                    "2024-01-15T00:00:00Z",
+                    { views: 100, visitors: 10, bounces: 2 },
+                ],
+                [
+                    "2024-01-16T00:00:00Z",
+                    { views: 200, visitors: 20, bounces: 5 },
+                ],
+            ])
+            .mockResolvedValueOnce([
+                [
+                    "2024-01-08T00:00:00Z",
+                    { views: 80, visitors: 8, bounces: 1 },
+                ],
+                [
+                    "2024-01-09T00:00:00Z",
+                    { views: 120, visitors: 12, bounces: 3 },
+                ],
+            ]);
+        vi.spyOn(context.analyticsEngine, "getEarliestEvents").mockResolvedValue(
+            {
+                earliestEvent: new Date("2020-01-01T00:00:00Z"),
+                earliestBounce: new Date("2020-01-01T00:00:00Z"),
+            },
+        );
 
         // mock out responsive container to just return a standard div, otherwise
         // recharts doesnt render underneath
@@ -50,6 +75,7 @@ describe("resources.timeseries loader", () => {
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
@@ -68,21 +94,26 @@ describe("resources.timeseries loader", () => {
             {
                 date: "2024-01-15T00:00:00Z",
                 views: 100,
-                visitors: 0,
-                bounceRate: 0,
+                visitors: 10,
+                bounceRate: 20,
+                previousViews: 80,
+                previousVisitors: 8,
+                previousBounceRate: 12,
             },
             {
                 date: "2024-01-16T00:00:00Z",
                 views: 200,
-                visitors: 0,
-                bounceRate: 0,
+                visitors: 20,
+                bounceRate: 25,
+                previousViews: 120,
+                previousVisitors: 12,
+                previousBounceRate: 25,
             },
         ]);
         expect(data.intervalType).toBe("DAY");
 
-        expect(
-            context.analyticsEngine.getViewsGroupedByInterval,
-        ).toHaveBeenCalledWith(
+        expect(context.analyticsEngine.getViewsGroupedByInterval).toHaveBeenNthCalledWith(
+            1,
             "test-site",
             "DAY",
             expect.any(Date),
@@ -90,6 +121,38 @@ describe("resources.timeseries loader", () => {
             "UTC",
             {},
         );
+        expect(context.analyticsEngine.getViewsGroupedByInterval).toHaveBeenNthCalledWith(
+            2,
+            "test-site",
+            "DAY",
+            expect.any(Date),
+            expect.any(Date),
+            "UTC",
+            {},
+        );
+    });
+
+    test("omits previous bounce rate when previous window predates bounce coverage", async () => {
+        vi.mocked(context.analyticsEngine.getEarliestEvents).mockResolvedValue({
+            earliestEvent: new Date("2020-01-01T00:00:00Z"),
+            earliestBounce: new Date("2026-07-05T00:00:00Z"),
+        });
+
+        const request = new Request(
+            "http://test.com?interval=7d&site=test-site&timezone=UTC",
+        );
+
+        const result = await loader({
+            context,
+            request,
+        } as any);
+        const data = await result;
+
+        expect(data.chartData[0]).toMatchObject({
+            previousViews: 80,
+            previousVisitors: 8,
+        });
+        expect(data.chartData[0]).not.toHaveProperty("previousBounceRate");
     });
 });
 
@@ -135,15 +198,19 @@ describe("TimeSeriesCard", () => {
         render(<TimeSeriesCard {...props} />);
 
         expect(mockFetcher.submit).toHaveBeenCalledWith(
-            {
-                site: "test-site",
-                interval: "7d",
-                timezone: "UTC",
-            },
+            expect.any(URLSearchParams),
             {
                 method: "get",
                 action: "/resources/timeseries",
             },
+        );
+        const params = mockFetcher.submit.mock.calls[0][0] as URLSearchParams;
+        expect(params.toString()).toBe(
+            new URLSearchParams({
+                site: "test-site",
+                interval: "7d",
+                timezone: "UTC",
+            }).toString(),
         );
     });
 
@@ -178,15 +245,13 @@ describe("TimeSeriesCard", () => {
 
         expect(mockFetcher.submit).toHaveBeenCalledTimes(2);
         expect(mockFetcher.submit).toHaveBeenLastCalledWith(
-            {
-                site: "test-site",
-                interval: "1d",
-                timezone: "UTC",
-            },
+            expect.any(URLSearchParams),
             {
                 method: "get",
                 action: "/resources/timeseries",
             },
         );
+        const params = mockFetcher.submit.mock.calls[1][0] as URLSearchParams;
+        expect(params.get("interval")).toBe("1d");
     });
 });

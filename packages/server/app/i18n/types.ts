@@ -205,6 +205,17 @@ export type Messages = {
             uniqueVisitorsHint: string;
             pageviewsHint: string;
             bounceHint: string;
+            compareUnavailable: string;
+            compareNew: string;
+            compareCleared: string;
+            compareFlat: string;
+            legacyComparisonHint: string;
+            chartVisitors: string;
+            chartViews: string;
+            chartBounceRate: string;
+            chartPreviousVisitors: string;
+            chartPreviousViews: string;
+            chartPreviousBounceRate: string;
             trendEyebrow: string;
             trendTitle: string;
             trendDesc: string;

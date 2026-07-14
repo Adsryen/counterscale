@@ -293,6 +293,43 @@ describe("AnalyticsEngineAPI", () => {
                 bounces: 2,
             });
         });
+
+        test("can count an explicit date range with filters and sample weighting", async () => {
+            fetch.mockResolvedValue(
+                createFetchResponse({
+                    data: [
+                        { count: 10, isVisitor: 0, isBounce: 1 },
+                        { count: 4, isVisitor: 1, isBounce: 0 },
+                    ],
+                }),
+            );
+
+            const result = await api.getCountsForDateRange(
+                "example.com",
+                new Date("2026-07-01T00:00:00Z"),
+                new Date("2026-07-02T00:00:00Z"),
+                "UTC",
+                { path: "/pricing", country: "US" },
+            );
+            const body = fetch.mock.calls[0][1].body as string;
+
+            expect(body).toContain("SUM(_sample_interval) as count");
+            expect(body).not.toMatch(/\bCOUNT\s*\(/i);
+            expect(body).toContain(
+                "timestamp >= toDateTime('2026-07-01 00:00:00')",
+            );
+            expect(body).toContain(
+                "timestamp < toDateTime('2026-07-02 00:00:00')",
+            );
+            expect(body).toContain("AND blob8 = 'example.com'");
+            expect(body).toContain("AND blob3 = '/pricing'");
+            expect(body).toContain("AND blob4 = 'US'");
+            expect(result).toEqual({
+                views: 14,
+                visitors: 4,
+                bounces: 10,
+            });
+        });
     });
 
     describe("getVisitorCountByColumn", () => {

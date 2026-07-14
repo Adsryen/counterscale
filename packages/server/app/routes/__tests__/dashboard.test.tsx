@@ -216,6 +216,24 @@ describe("Dashboard route", () => {
                         },
                     },
                     {
+                        path: "/resources/region",
+                        loader: () => {
+                            return { countsByProperty: [] };
+                        },
+                    },
+                    {
+                        path: "/resources/city",
+                        loader: () => {
+                            return { countsByProperty: [] };
+                        },
+                    },
+                    {
+                        path: "/resources/geo",
+                        loader: () => {
+                            return { points: [] };
+                        },
+                    },
+                    {
                         path: "/resources/device",
                         loader: () => {
                             return { countsByProperty: [] };

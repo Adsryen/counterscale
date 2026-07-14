@@ -12,6 +12,7 @@ import {
 import { useMemo } from "react";
 
 import { Card } from "./ui/card";
+import { useLocale } from "~/i18n/LocaleContext";
 
 interface TimeSeriesChartProps {
     data: Array<{
@@ -19,6 +20,9 @@ interface TimeSeriesChartProps {
         views: number;
         visitors: number;
         bounceRate: number;
+        previousViews?: number;
+        previousVisitors?: number;
+        previousBounceRate?: number;
     }>;
     intervalType?: string;
 }
@@ -29,7 +33,14 @@ function dateStringToLocalDateObj(dateString: string): Date {
     return date;
 }
 
-type TooltipPayload = Array<{ value?: number | string }>;
+type TooltipPayload = Array<{
+    value?: number | string;
+    dataKey?: string | number;
+}>;
+
+function payloadValue(payload: TooltipPayload | undefined, dataKey: string) {
+    return payload?.find((entry) => entry.dataKey === dataKey)?.value;
+}
 
 function CustomTooltip({
     active,
@@ -40,6 +51,7 @@ function CustomTooltip({
     payload?: TooltipPayload;
     label?: string;
 }) {
+    const { t } = useLocale();
     if (!active || !payload?.length || !label) return null;
 
     const date = dateStringToLocalDateObj(label);
@@ -51,20 +63,32 @@ function CustomTooltip({
         minute: "numeric",
         timeZoneName: "short",
     });
+    const previousViews = payloadValue(payload, "previousViews");
+    const previousVisitors = payloadValue(payload, "previousVisitors");
+    const previousBounceRate = payloadValue(payload, "previousBounceRate");
 
     return (
         <Card className="rounded-xl border-border/70 p-3 shadow-lg leading-normal">
             <div className="font-semibold">{formattedDate}</div>
             <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                 <div className="before:content-['\2022'] before:text-chart-visitors before:font-bold before:mr-2">
-                    {`${payload[1]?.value ?? "—"} visitors`}
+                    {`${payloadValue(payload, "visitors") ?? "\u2014"} ${t("console.overview.chartVisitors")}`}
                 </div>
                 <div className="before:content-['\2022'] before:text-chart-views before:font-bold before:mr-2">
-                    {`${payload[0]?.value ?? "—"} views`}
+                    {`${payloadValue(payload, "views") ?? "\u2014"} ${t("console.overview.chartViews")}`}
                 </div>
                 <div className="before:content-['\2022'] before:text-chart-bounce before:font-bold before:mr-2">
-                    {`${payload[2]?.value ?? "—"}% bounce rate`}
+                    {`${payloadValue(payload, "bounceRate") ?? "\u2014"}% ${t("console.overview.chartBounceRate")}`}
                 </div>
+                {previousViews !== undefined ||
+                previousVisitors !== undefined ||
+                previousBounceRate !== undefined ? (
+                    <div className="border-t border-border/70 pt-2 text-xs">
+                        <div>{`${previousVisitors ?? "\u2014"} ${t("console.overview.chartPreviousVisitors")}`}</div>
+                        <div>{`${previousViews ?? "\u2014"} ${t("console.overview.chartPreviousViews")}`}</div>
+                        <div>{`${previousBounceRate ?? "\u2014"}% ${t("console.overview.chartPreviousBounceRate")}`}</div>
+                    </div>
+                ) : null}
             </div>
         </Card>
     );
@@ -97,8 +121,11 @@ export default function TimeSeriesChart({
     const yAxisCountTicks = useMemo(() => {
         const MAX_TICKS_TO_SHOW = 4;
 
-        // get the max integer value of data views
-        const maxViews = Math.max(...data.map((item) => item.views));
+        // get the max integer value of current and comparison views
+        const maxViews = Math.max(
+            1,
+            ...data.map((item) => Math.max(item.views, item.previousViews ?? 0)),
+        );
 
         // determine the magnitude of maxViews to set rounding
         const magnitude = Math.floor(Math.log10(maxViews));
@@ -187,6 +214,28 @@ export default function TimeSeriesChart({
                 {/* NOTE: colors defined in globals.css/tailwind.config.js */}
                 <Area
                     yAxisId="count"
+                    dataKey="previousViews"
+                    stroke="hsl(var(--chart-views))"
+                    strokeWidth="1.5"
+                    strokeDasharray="5 5"
+                    fill="transparent"
+                    fillOpacity={0}
+                    dot={false}
+                    opacity={0.45}
+                />
+                <Area
+                    yAxisId="count"
+                    dataKey="previousVisitors"
+                    stroke="hsl(var(--chart-visitors))"
+                    strokeWidth="1.5"
+                    strokeDasharray="5 5"
+                    fill="transparent"
+                    fillOpacity={0}
+                    dot={false}
+                    opacity={0.45}
+                />
+                <Area
+                    yAxisId="count"
                     dataKey="views"
                     stroke="hsl(var(--chart-views))"
                     strokeWidth="2"
@@ -200,6 +249,15 @@ export default function TimeSeriesChart({
                     strokeWidth="2"
                     fill="hsl(var(--chart-visitors))"
                     fillOpacity={0.12}
+                />
+                <Line
+                    yAxisId="bounceRate"
+                    dataKey="previousBounceRate"
+                    stroke="hsl(var(--chart-bounce))"
+                    strokeWidth="1.5"
+                    strokeDasharray="5 5"
+                    dot={false}
+                    opacity={0.45}
                 />
                 <Line
                     yAxisId="bounceRate"

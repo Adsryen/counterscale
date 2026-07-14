@@ -17,7 +17,7 @@ interface AnalyticsQueryResult<
     rows_before_limit_at_least: number;
 }
 
-interface AnalyticsCountResult {
+export interface AnalyticsCountResult {
     views: number;
     visitors: number;
     bounces: number;
@@ -151,7 +151,7 @@ function filtersToSql(filters: SearchFilters) {
     let filterStr = "";
     supportedFilters.forEach((filter) => {
         if (Object.hasOwnProperty.call(filters, filter)) {
-            filterStr += `AND ${ColumnMappings[filter]} = '${filters[filter]}'`;
+            filterStr += ` AND ${ColumnMappings[filter]} = '${filters[filter]}'`;
         }
     });
     return filterStr;
@@ -397,6 +397,63 @@ export class AnalyticsEngineAPI {
         );
 
         return returnPromise;
+    }
+
+    async getCountsForDateRange(
+        siteId: string,
+        startDateTime: Date,
+        endDateTime: Date,
+        tz?: string,
+        filters: SearchFilters = {},
+    ): Promise<AnalyticsCountResult> {
+        const siteIdColumn = ColumnMappings["siteId"];
+        const filterStr = filtersToSql(filters);
+        const startDateTimeSql = dayjs(startDateTime)
+            .tz(tz)
+            .utc()
+            .format("YYYY-MM-DD HH:mm:ss");
+        const endDateTimeSql = dayjs(endDateTime)
+            .tz(tz)
+            .utc()
+            .format("YYYY-MM-DD HH:mm:ss");
+
+        const query = `
+            SELECT SUM(_sample_interval) as count,
+                ${ColumnMappings.newVisitor} as isVisitor,
+                ${ColumnMappings.bounce} as isBounce
+            FROM metricsDataset
+            WHERE timestamp >= toDateTime('${startDateTimeSql}')
+                AND timestamp < toDateTime('${endDateTimeSql}')
+                ${filterStr}
+                AND ${siteIdColumn} = '${siteId}'
+            GROUP BY isVisitor, isBounce
+            ORDER BY isVisitor, isBounce ASC`;
+
+        type SelectionSet = {
+            count: number;
+            isVisitor: number;
+            isBounce: number;
+        };
+
+        const response = await this.query(query);
+
+        if (!response.ok) {
+            throw response.statusText;
+        }
+
+        const responseData =
+            (await response.json()) as AnalyticsQueryResult<SelectionSet>;
+        const counts: AnalyticsCountResult = {
+            views: 0,
+            visitors: 0,
+            bounces: 0,
+        };
+
+        responseData.data.forEach((row) => {
+            accumulateCountsFromRowResult(counts, row);
+        });
+
+        return counts;
     }
 
     async getVisitorCountByColumn<T extends keyof typeof ColumnMappings>(
