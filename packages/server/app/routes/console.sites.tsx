@@ -12,6 +12,7 @@ import {
 } from "react-router";
 import { useState } from "react";
 
+import type { SiteSummaryMetricResult } from "~/analytics/query";
 import {
     Card,
     CardContent,
@@ -28,6 +29,10 @@ import {
     listSites,
     updateSite,
 } from "~/lib/sites";
+import {
+    buildMultisiteSummary,
+    type MultisiteSummaryRow,
+} from "~/lib/multisite-summary";
 import { getMessages, resolveLocale, translate } from "~/i18n";
 import { useLocale } from "~/i18n/LocaleContext";
 import { cn } from "~/lib/utils";
@@ -43,21 +48,7 @@ export const meta: MetaFunction = () => {
 };
 
 /** Registry site or AE-discovered siteId without D1 row yet. */
-export type SiteListItem = {
-    siteId: string;
-    name: string;
-    enabled: boolean;
-    publicStats: boolean;
-    recordIp: boolean;
-    ipRetentionDays: number;
-    allowedHosts: string | null;
-    createdAt: string;
-    updatedAt: string;
-    /** true = row in D1; false = only seen in Analytics Engine traffic */
-    inRegistry: boolean;
-    /** approximate hits last 90d from AE ranking (if known) */
-    hits90d: number | null;
-};
+export type SiteListItem = MultisiteSummaryRow;
 
 function localeMessages(request: Request) {
     const locale = resolveLocale({
@@ -65,6 +56,12 @@ function localeMessages(request: Request) {
         acceptLanguage: request.headers.get("Accept-Language"),
     });
     return getMessages(locale);
+}
+
+function daysAgoRange(days: number) {
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+    return { startDate, endDate };
 }
 
 /** Plain link that looks like a Button — avoids asChild/Slot click issues. */
@@ -90,6 +87,68 @@ function ActionLink({
     );
 }
 
+function formatCount(n: number | null | undefined) {
+    if (n === null || n === undefined) return "—";
+    return Intl.NumberFormat("zh-CN", { notation: "compact" }).format(n);
+}
+
+function formatBounceRate(n: number | null | undefined) {
+    if (n === null || n === undefined) return "—";
+    return Intl.NumberFormat("zh-CN", {
+        style: "percent",
+        maximumFractionDigits: 1,
+    }).format(n);
+}
+
+function formatLastSeen(value: string | null | undefined) {
+    if (!value) return "—";
+    return value.replace("T", " ").replace(".000Z", "");
+}
+
+function MetricsCell({ site }: { site: SiteListItem }) {
+    const { t } = useLocale();
+    return (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs tabular-nums">
+            <span className="text-muted-foreground">{t("console.site.pv")}</span>
+            <span className="text-right">{formatCount(site.views)}</span>
+            <span className="text-muted-foreground">{t("console.site.uv")}</span>
+            <span className="text-right">{formatCount(site.visitors)}</span>
+            <span className="text-muted-foreground">
+                {t("console.site.bounceRate")}
+            </span>
+            <span className="text-right">{formatBounceRate(site.bounceRate)}</span>
+        </div>
+    );
+}
+
+function HealthStatus({ site }: { site: SiteListItem }) {
+    const { t } = useLocale();
+    const tone =
+        site.status === "active"
+            ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+            : site.status === "disabled"
+              ? "border-border bg-muted/50 text-muted-foreground"
+              : site.status === "metrics-unavailable"
+                ? "border-red-300 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+                : "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200";
+
+    return (
+        <div className="space-y-1.5">
+            <span
+                className={cn(
+                    "inline-flex rounded-full border px-2 py-0.5 text-xs",
+                    tone,
+                )}
+            >
+                {t(`console.site.health.${site.status}`)}
+            </span>
+            <div className="text-xs text-muted-foreground">
+                {t("console.site.lastSeen")}: {formatLastSeen(site.lastSeenAt)}
+            </div>
+        </div>
+    );
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
     await requireAuth(request, context.cloudflare.env);
 
@@ -104,56 +163,31 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const registry = await listSites(db);
     const origin = new URL(request.url).origin;
 
-    let aeSites: [string, number][] = [];
+    let metrics: SiteSummaryMetricResult[] = [];
+    let metricsUnavailable = false;
     try {
         if (
             context.cloudflare.env.CF_ACCOUNT_ID &&
             context.cloudflare.env.CF_BEARER_TOKEN
         ) {
-            aeSites = await context.analyticsEngine.getSitesOrderedByHits("90d");
+            const { startDate, endDate } = daysAgoRange(90);
+            metrics = await context.analyticsEngine.getSiteSummariesForDateRange(
+                startDate,
+                endDate,
+                "UTC",
+            );
+        } else {
+            metricsUnavailable = true;
         }
     } catch (err) {
-        console.error("sites list AE discovery failed", err);
+        metricsUnavailable = true;
+        console.error("sites list AE summary failed", err);
     }
 
-    const regMap = new Map(registry.map((s) => [s.siteId, s]));
-    const aeMap = new Map(
-        aeSites.filter(([id]) => !!id).map(([id, hits]) => [id, hits]),
-    );
-
-    const items: SiteListItem[] = [];
-
-    for (const s of registry) {
-        items.push({
-            ...s,
-            inRegistry: true,
-            hits90d: aeMap.get(s.siteId) ?? null,
-        });
-    }
-
-    for (const [siteId, hits] of aeMap) {
-        if (regMap.has(siteId)) continue;
-        items.push({
-            siteId,
-            name: siteId,
-            enabled: true,
-            publicStats: true,
-            recordIp: true,
-            ipRetentionDays: 60,
-            allowedHosts: null,
-            createdAt: "",
-            updatedAt: "",
-            inRegistry: false,
-            hits90d: hits,
-        });
-    }
-
-    items.sort((a, b) => {
-        if (a.inRegistry !== b.inRegistry) return a.inRegistry ? -1 : 1;
-        const ha = a.hits90d ?? -1;
-        const hb = b.hits90d ?? -1;
-        if (ha !== hb) return hb - ha;
-        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    const items = buildMultisiteSummary({
+        registry,
+        metrics,
+        metricsUnavailable,
     });
 
     return {
@@ -301,14 +335,13 @@ function SiteRow({
                             {t("console.site.discoveredBadge")}
                         </span>
                     </div>
-                    {site.hits90d != null ? (
-                        <div className="text-xs text-muted-foreground mt-1">
-                            {t("console.site.hits90d", { count: site.hits90d })}
-                        </div>
-                    ) : null}
+                </td>
+                <td className="py-3 px-2 align-top">
+                    <MetricsCell site={site} />
                 </td>
                 <td className="py-3 px-2 align-top text-sm text-muted-foreground">
-                    {t("admin.publicStatsOn")}
+                    <HealthStatus site={site} />
+                    <div className="mt-1">{t("admin.publicStatsOn")}</div>
                 </td>
                 <td className="py-3 px-2 align-top" colSpan={2}>
                     <div className="flex flex-wrap gap-2">
@@ -356,7 +389,7 @@ function SiteRow({
     if (editing) {
         return (
             <tr className="border-b align-top">
-                <td colSpan={4} className="py-3 px-2">
+                <td colSpan={5} className="py-3 px-2">
                     <Form method="post" className="space-y-3">
                         <input type="hidden" name="intent" value="update" />
                         <input type="hidden" name="siteId" value={site.siteId} />
@@ -467,8 +500,12 @@ function SiteRow({
                     </code>
                 </div>
             </td>
+            <td className="py-3 px-2 align-top">
+                <MetricsCell site={site} />
+            </td>
             <td className="py-3 px-2 align-top text-sm">
                 <div className="flex flex-col gap-1.5">
+                    <HealthStatus site={site} />
                     {site.enabled ? (
                         <span className="text-emerald-600 dark:text-emerald-400">
                             {t("admin.enabled")}
@@ -755,6 +792,9 @@ export default function AdminSites() {
                                 <tr className="border-b text-muted-foreground">
                                     <th className="py-2 px-2 font-medium">
                                         {t("admin.sitesTitle")}
+                                    </th>
+                                    <th className="py-2 px-2 font-medium">
+                                        {t("console.site.metrics")}
                                     </th>
                                     <th className="py-2 px-2 font-medium">
                                         {t("admin.status")}

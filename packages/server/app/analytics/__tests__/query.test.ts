@@ -900,6 +900,68 @@ describe("Analytics Engine schema and sampling contracts", () => {
         ]);
     });
 
+    test("getSiteSummariesForDateRange aggregates all sites with sample weighting and latest seen time", async () => {
+        const fetch = vi.fn().mockResolvedValue(
+            createFetchResponse({
+                data: [
+                    {
+                        siteId: "site-a",
+                        isVisitor: 1,
+                        isBounce: 1,
+                        count: 2,
+                        lastSeenAt: "2026-07-12 08:00:00",
+                    },
+                    {
+                        siteId: "site-a",
+                        isVisitor: 0,
+                        isBounce: -1,
+                        count: 1,
+                        lastSeenAt: "2026-07-12 09:00:00",
+                    },
+                    {
+                        siteId: "site-b",
+                        isVisitor: 0,
+                        isBounce: 0,
+                        count: 5,
+                        lastSeenAt: "2026-07-12 07:00:00",
+                    },
+                ],
+            }),
+        ) as Mock;
+        global.fetch = fetch;
+
+        const result = await api.getSiteSummariesForDateRange(
+            new Date("2026-07-12T00:00:00Z"),
+            new Date("2026-07-13T00:00:00Z"),
+            "Etc/UTC",
+        );
+        const body = fetch.mock.calls[0][1].body as string;
+
+        expect(body).toContain("SUM(_sample_interval) as count");
+        expect(body).toContain("MAX(timestamp) as lastSeenAt");
+        expect(body).toContain("GROUP BY");
+        expect(body).toContain("siteId");
+        expect(body).toContain("isVisitor");
+        expect(body).toContain("isBounce");
+        expect(body).not.toMatch(/\bCOUNT\s*\(/i);
+        expect(result).toEqual([
+            {
+                siteId: "site-a",
+                views: 3,
+                visitors: 2,
+                bounces: 1,
+                lastSeenAt: "2026-07-12 09:00:00",
+            },
+            {
+                siteId: "site-b",
+                views: 5,
+                visitors: 0,
+                bounces: 0,
+                lastSeenAt: "2026-07-12 07:00:00",
+            },
+        ]);
+    });
+
     test("query source does not use naked COUNT or uniq as true hit counters", () => {
         const source = readFileSync(
             new URL("../query.ts", import.meta.url),

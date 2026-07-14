@@ -1,7 +1,9 @@
 import type { LoaderFunctionArgs, MetaFunction } from "react-router";
 import { useLoaderData } from "react-router";
+import type { SiteSummaryMetricResult } from "~/analytics/query";
 import { requireAuth } from "~/lib/auth";
 import { listSites } from "~/lib/sites";
+import { buildMultisiteSummary } from "~/lib/multisite-summary";
 import { useLocale } from "~/i18n/LocaleContext";
 import { Button } from "~/components/ui/button";
 import {
@@ -22,7 +24,17 @@ type SiteSummary = {
     enabled: boolean;
     views: number | null;
     visitors: number | null;
+    bounces: number | null;
+    bounceRate: number | null;
+    lastSeenAt: string | null;
+    status: string;
 };
+
+function daysAgoRange(days: number) {
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+    return { startDate, endDate };
+}
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
     await requireAuth(request, context.cloudflare.env);
@@ -30,81 +42,41 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const db = context.cloudflare.env.DB;
     const registry = db ? await listSites(db) : [];
 
-    let aeSites: [string, number][] = [];
+    let metrics: SiteSummaryMetricResult[] = [];
+    let metricsUnavailable = false;
+    const interval = "7d";
+    const tz = "UTC";
     try {
         if (
             context.cloudflare.env.CF_ACCOUNT_ID &&
             context.cloudflare.env.CF_BEARER_TOKEN
         ) {
-            aeSites = await context.analyticsEngine.getSitesOrderedByHits("7d");
+            const { startDate, endDate } = daysAgoRange(7);
+            metrics = await context.analyticsEngine.getSiteSummariesForDateRange(
+                startDate,
+                endDate,
+                tz,
+            );
+        } else {
+            metricsUnavailable = true;
         }
     } catch (err) {
-        console.error("overview AE sites query failed", err);
+        metricsUnavailable = true;
+        console.error("overview AE summary query failed", err);
     }
 
-    const aeMap = new Map(aeSites.map(([id, hits]) => [id, hits]));
-    const nameById = new Map(registry.map((s) => [s.siteId, s]));
-
-    // Prefer registry order; append AE-only siteIds not in registry
-    const orderedIds: string[] = [
-        ...registry.map((s) => s.siteId),
-        ...aeSites.map(([id]) => id).filter((id) => id && !nameById.has(id)),
-    ];
-
-    // Unique preserve order
-    const seen = new Set<string>();
-    const uniqueIds = orderedIds.filter((id) => {
-        if (!id || seen.has(id)) return false;
-        seen.add(id);
-        return true;
+    const allSummaries = buildMultisiteSummary({
+        registry,
+        metrics,
+        metricsUnavailable,
     });
-
-    // Cap parallel AE count queries for overview
-    const top = uniqueIds.slice(0, 12);
-    const tz = "UTC";
-    const interval = "7d";
-
-    const summaries: SiteSummary[] = await Promise.all(
-        top.map(async (siteId) => {
-            const reg = nameById.get(siteId);
-            let views: number | null = null;
-            let visitors: number | null = null;
-            try {
-                if (
-                    context.cloudflare.env.CF_ACCOUNT_ID &&
-                    context.cloudflare.env.CF_BEARER_TOKEN
-                ) {
-                    const counts = await context.analyticsEngine.getCounts(
-                        siteId,
-                        interval,
-                        tz,
-                        {},
-                    );
-                    views = counts.views;
-                    visitors = counts.visitors;
-                }
-            } catch {
-                // fall back to AE hit ordering only
-                views = aeMap.get(siteId) ?? null;
-            }
-            return {
-                siteId,
-                name: reg?.name || siteId,
-                enabled: reg ? reg.enabled : true,
-                views,
-                visitors,
-            };
-        }),
-    );
-
-    // Sort by views desc when available
-    summaries.sort((a, b) => (b.views ?? -1) - (a.views ?? -1));
+    const summaries: SiteSummary[] = allSummaries.slice(0, 12);
 
     const totalViews = summaries.reduce((s, x) => s + (x.views ?? 0), 0);
     const totalVisitors = summaries.reduce((s, x) => s + (x.visitors ?? 0), 0);
 
     return {
-        siteCount: uniqueIds.length,
+        siteCount: allSummaries.length,
         registryCount: registry.length,
         summaries,
         totalViews,

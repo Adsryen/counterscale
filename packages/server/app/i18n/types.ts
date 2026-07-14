@@ -262,6 +262,17 @@ export type Messages = {
             discoveredHint: string;
             import: string;
             hits90d: string;
+            metrics: string;
+            pv: string;
+            uv: string;
+            bounceRate: string;
+            lastSeen: string;
+            health: {
+                active: string;
+                waiting: string;
+                disabled: string;
+                "metrics-unavailable": string;
+            };
             listSummary: string;
             emptyHint: string;
             backList: string;

@@ -29,6 +29,10 @@ export interface AnalyticsCountResult {
 }
 
 export type ViewsGroupedByInterval = [string, AnalyticsCountResult][];
+export type SiteSummaryMetricResult = AnalyticsCountResult & {
+    siteId: string;
+    lastSeenAt: string | null;
+};
 export type TrafficSourceSummaryRow = [
     sourceType: TrafficSourceType,
     visitors: number,
@@ -627,6 +631,79 @@ export class AnalyticsEngineAPI {
                 ]),
             );
         });
+    }
+
+    async getSiteSummariesForDateRange(
+        startDateTime: Date,
+        endDateTime: Date,
+        tz?: string,
+    ): Promise<SiteSummaryMetricResult[]> {
+        const startDateTimeSql = dayjs(startDateTime)
+            .tz(tz)
+            .utc()
+            .format("YYYY-MM-DD HH:mm:ss");
+        const endDateTimeSql = dayjs(endDateTime)
+            .tz(tz)
+            .utc()
+            .format("YYYY-MM-DD HH:mm:ss");
+
+        const query = `
+            SELECT
+                ${ColumnMappings.siteId} as siteId,
+                ${ColumnMappings.newVisitor} as isVisitor,
+                ${ColumnMappings.bounce} as isBounce,
+                SUM(_sample_interval) as count,
+                MAX(timestamp) as lastSeenAt
+            FROM metricsDataset
+            WHERE timestamp >= toDateTime('${startDateTimeSql}') AND timestamp < toDateTime('${endDateTimeSql}')
+            GROUP BY
+                ${ColumnMappings.siteId},
+                ${ColumnMappings.newVisitor},
+                ${ColumnMappings.bounce}
+            ORDER BY count DESC
+        `;
+
+        type SelectionSet = {
+            siteId: string;
+            isVisitor: number;
+            isBounce: number;
+            count: number;
+            lastSeenAt: string;
+        };
+
+        const response = await this.query(query);
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+
+        const responseData =
+            (await response.json()) as AnalyticsQueryResult<SelectionSet>;
+        const rowsBySite = new Map<string, SiteSummaryMetricResult>();
+
+        responseData.data.forEach((row) => {
+            if (!row.siteId) {
+                return;
+            }
+
+            const counts = rowsBySite.get(row.siteId) ?? {
+                siteId: row.siteId,
+                views: 0,
+                visitors: 0,
+                bounces: 0,
+                lastSeenAt: null,
+            };
+
+            accumulateCountsFromRowResult(counts, row);
+            if (
+                row.lastSeenAt &&
+                (!counts.lastSeenAt || row.lastSeenAt > counts.lastSeenAt)
+            ) {
+                counts.lastSeenAt = row.lastSeenAt;
+            }
+            rowsBySite.set(row.siteId, counts);
+        });
+
+        return Array.from(rowsBySite.values());
     }
 
     async getAllCountsByColumn<T extends keyof typeof ColumnMappings>(
