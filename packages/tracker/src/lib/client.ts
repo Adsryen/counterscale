@@ -1,5 +1,6 @@
 import { ActivityManager } from "./activity";
 import { IdentityManager } from "./identity";
+import { PresenceManager } from "./presence";
 import { autoTrackPageviews } from "./track";
 import type { BaseClientConfig } from "../shared/types";
 
@@ -13,6 +14,7 @@ export class Client {
     reportOnLocalhost = false;
     identity: IdentityManager;
     activity: ActivityManager;
+    presence?: PresenceManager;
 
     _cleanupAutoTrackPageviews?: () => void;
 
@@ -29,6 +31,13 @@ export class Client {
             this.reportOnLocalhost = opts.reportOnLocalhost;
         }
 
+        this.presence = new PresenceManager({
+            siteId: opts.siteId,
+            reporterUrl: opts.reporterUrl,
+            reportOnLocalhost: this.reportOnLocalhost,
+            getContext: () => this.identity.getContext(),
+        });
+
         // default to true
         if (opts.autoTrackPageviews === undefined || opts.autoTrackPageviews) {
             // Use setTimeout to ensure this runs after the constructor
@@ -44,5 +53,6 @@ export class Client {
             this._cleanupAutoTrackPageviews();
         }
         this.activity.cleanup();
+        this.presence?.cleanup();
     }
 }

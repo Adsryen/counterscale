@@ -17,6 +17,7 @@ declare namespace Cloudflare {
 		WEB_COUNTER_AE: AnalyticsEngineDataset;
 		ASSETS: Fetcher;
 		DB: D1Database;
+		PRESENCE: DurableObjectNamespace;
 	}
 }
 interface Env extends Cloudflare.Env {}

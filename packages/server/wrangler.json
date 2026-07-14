@@ -41,5 +41,21 @@
             "custom_domain": true
         }
     ],
-    "workers_dev": true
+    "workers_dev": true,
+    "durable_objects": {
+        "bindings": [
+            {
+                "name": "PRESENCE",
+                "class_name": "SitePresence"
+            }
+        ]
+    },
+    "migrations": [
+        {
+            "tag": "v1",
+            "new_sqlite_classes": [
+                "SitePresence"
+            ]
+        }
+    ]
 }

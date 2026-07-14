@@ -118,4 +118,5 @@ export async function trackPageview(
     );
 
     makeRequest(client.reporterUrl, requestParams);
+    client.presence?.updatePage(path);
 }

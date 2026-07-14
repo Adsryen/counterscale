@@ -166,6 +166,15 @@ export default function ConsoleSiteHub() {
                             {t("console.site.consoleAnalytics")}
                         </a>
                         <a
+                            href={`/console/sites/${encodeURIComponent(siteId)}/realtime`}
+                            className={cn(
+                                buttonVariants({ variant: "outline" }),
+                                "rounded-xl",
+                            )}
+                        >
+                            实时访客
+                        </a>
+                        <a
                             href={`/console/sites/${encodeURIComponent(siteId)}/visitors`}
                             className={cn(
                                 buttonVariants({ variant: "outline" }),
