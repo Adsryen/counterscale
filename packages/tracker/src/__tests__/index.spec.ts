@@ -50,8 +50,8 @@ describe("api", () => {
     });
 
     afterEach(() => {
-        mockXhrObjects = [];
         Counterscale.cleanup();
+        mockXhrObjects = [];
     });
 
     describe("init", () => {

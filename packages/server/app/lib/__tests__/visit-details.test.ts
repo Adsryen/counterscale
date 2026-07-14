@@ -9,9 +9,15 @@ type VisitRow = {
     last_seen_at: string;
     ip_ciphertext: string | null;
     ip_hmac: string | null;
+    page_count: number;
 };
 
-type PageviewRow = { site_id: string; visit_id: string; path: string | null };
+type PageviewRow = {
+    site_id: string;
+    visit_id: string;
+    path: string | null;
+    client_pageview_id: string | null;
+};
 type PrefixRow = { site_id: string; visit_id: string; prefix_length: number; prefix_token: string };
 
 function createDetailD1() {
@@ -49,14 +55,33 @@ function createDetailD1() {
                             last_seen_at: String(last_seen_at ?? first_seen_at),
                             ip_ciphertext: ip_ciphertext == null ? null : String(ip_ciphertext),
                             ip_hmac: ip_hmac == null ? null : String(ip_hmac),
+                            page_count: 0,
                         });
                     } else if (sql.includes("UPDATE visits")) {
-                        const [last_seen_at, , site_id, visit_id] = binds as (string | null)[];
-                        const existing = visits.get(key(String(site_id), String(visit_id)));
-                        if (existing) existing.last_seen_at = String(last_seen_at);
+                        const existing = visits.get(
+                            key(String(binds[binds.length - 2]), String(binds[binds.length - 1])),
+                        );
+                        if (existing) {
+                            if (sql.includes("last_seen_at")) {
+                                existing.last_seen_at = String(binds[0]);
+                            }
+                            if (sql.includes("page_count = page_count + 1")) {
+                                existing.page_count += 1;
+                            }
+                        }
                     } else if (sql.includes("INSERT INTO pageviews")) {
                         const [, site_id, visit_id, , , , , path] = binds as (string | null)[];
-                        pageviews.push({ site_id: String(site_id), visit_id: String(visit_id), path });
+                        const clientPageviewId =
+                            sql.includes("client_pageview_id") && binds.length > 16
+                                ? binds[16]
+                                : null;
+                        pageviews.push({
+                            site_id: String(site_id),
+                            visit_id: String(visit_id),
+                            path,
+                            client_pageview_id:
+                                clientPageviewId == null ? null : String(clientPageviewId),
+                        });
                     } else if (sql.includes("INSERT INTO visit_ip_prefixes")) {
                         const [site_id, visit_id, prefix_length, prefix_token] = binds as (string | number)[];
                         prefixes.push({
@@ -106,6 +131,7 @@ describe("visit detail storage", () => {
             host: "example.com",
             path: "/first",
             referrer: "https://ref.example/",
+            clientPageviewId: "client-pv-1",
             country: "CN",
             region: "Zhejiang",
             city: "Hangzhou",
@@ -117,6 +143,7 @@ describe("visit detail storage", () => {
             occurredAt: new Date("2026-07-13T10:01:00Z"),
             retentionDays: 60,
             path: "/second",
+            clientPageviewId: "client-pv-2",
             encryptedIp: {
                 ...encryptedIp,
                 ciphertext: "should-not-overwrite",
@@ -127,8 +154,13 @@ describe("visit detail storage", () => {
         const row = db._visits.get("site-a\u0000visit-1");
         expect(row?.ip_ciphertext).toBe("cipher");
         expect(row?.ip_hmac).toBe("hmac");
+        expect(row?.page_count).toBe(2);
         expect(db._prefixes).toHaveLength(1);
         expect(db._pageviews.map((p) => p.path)).toEqual(["/first", "/second"]);
+        expect(db._pageviews.map((p) => p.client_pageview_id)).toEqual([
+            "client-pv-1",
+            "client-pv-2",
+        ]);
     });
 
     test("records visit and pageview without IP when disabled", async () => {

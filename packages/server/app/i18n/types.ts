@@ -151,6 +151,8 @@ export type Messages = {
         uv: string;
         pv: string;
         bounce: string;
+        avgDuration: string;
+        avgDepth: string;
         region: string;
         city: string;
         country: string;
@@ -205,6 +207,8 @@ export type Messages = {
             uniqueVisitorsHint: string;
             pageviewsHint: string;
             bounceHint: string;
+            durationHint: string;
+            depthHint: string;
             compareUnavailable: string;
             compareNew: string;
             compareCleared: string;

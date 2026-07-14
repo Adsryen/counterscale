@@ -1,4 +1,5 @@
 import { ActivityManager } from "./activity";
+import { EngagementManager } from "./engagement";
 import { IdentityManager } from "./identity";
 import { PresenceManager } from "./presence";
 import { autoTrackPageviews } from "./track";
@@ -14,6 +15,7 @@ export class Client {
     reportOnLocalhost = false;
     identity: IdentityManager;
     activity: ActivityManager;
+    engagement: EngagementManager;
     presence?: PresenceManager;
 
     _cleanupAutoTrackPageviews?: () => void;
@@ -22,14 +24,22 @@ export class Client {
         this.siteId = opts.siteId;
         this.reporterUrl = opts.reporterUrl;
         this.identity = new IdentityManager({ siteId: opts.siteId });
-        this.activity = new ActivityManager({
-            siteId: opts.siteId,
-            getContext: () => this.identity.getContext(),
-        });
 
         if (opts.reportOnLocalhost) {
             this.reportOnLocalhost = opts.reportOnLocalhost;
         }
+
+        this.activity = new ActivityManager({
+            siteId: opts.siteId,
+            getContext: () => this.identity.getContext(),
+        });
+        this.engagement = new EngagementManager({
+            siteId: opts.siteId,
+            reporterUrl: opts.reporterUrl,
+            reportOnLocalhost: this.reportOnLocalhost,
+            getContext: () => this.identity.getContext(),
+            getPageviewId: () => null,
+        });
 
         this.presence = new PresenceManager({
             siteId: opts.siteId,
@@ -53,6 +63,7 @@ export class Client {
             this._cleanupAutoTrackPageviews();
         }
         this.activity.cleanup();
+        this.engagement.cleanup();
         this.presence?.cleanup();
     }
 }

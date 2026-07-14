@@ -23,6 +23,7 @@ export type VisitPageviewInput = VisitGeoInput & {
     host?: string;
     path?: string;
     referrer?: string;
+    clientPageviewId?: string;
     userAgent?: string;
     encryptedIp?: EncryptedIpAddress;
 };
@@ -154,8 +155,8 @@ export async function recordVisitAndPageview(
                 pageview_id, site_id, visit_id, tab_id,
                 occurred_at, client_time, host, path, referrer,
                 country, region, city, region_code, latitude, longitude,
-                created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                created_at, client_pageview_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
             pageviewId,
@@ -174,7 +175,17 @@ export async function recordVisitAndPageview(
             input.latitude ?? null,
             input.longitude ?? null,
             now,
+            input.clientPageviewId ?? null,
         )
+        .run();
+
+    await db
+        .prepare(
+            `UPDATE visits
+             SET page_count = page_count + 1, updated_at = ?
+             WHERE site_id = ? AND visit_id = ?`,
+        )
+        .bind(now, input.siteId, input.visitId)
         .run();
 
     return { visitCreated, pageviewId };

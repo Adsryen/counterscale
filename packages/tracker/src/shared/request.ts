@@ -13,6 +13,7 @@ export function buildCollectRequestParams(
     utmParams: UtmParams = {},
     hitType?: string,
     identity?: IdentityRequestParams,
+    clientPageviewId?: string,
 ): CollectRequestParams {
     const params: CollectRequestParams = {
         p: path,
@@ -31,6 +32,10 @@ export function buildCollectRequestParams(
         params.tid = identity.tabId;
         params.isc = identity.identityScope;
         params.ct = identity.clientTime.toString();
+    }
+
+    if (clientPageviewId) {
+        params.pid = clientPageviewId;
     }
 
     Object.assign(params, utmParams);

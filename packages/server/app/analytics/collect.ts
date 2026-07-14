@@ -275,6 +275,10 @@ export async function collectRequestHandler(
     if (!identityParams.ok) {
         return new Response(identityParams.message, { status: 400 });
     }
+    const clientPageviewId = normalizeOptionalIdentityId(params.pid, "pid");
+    if (!clientPageviewId.ok) {
+        return new Response(clientPageviewId.message, { status: 400 });
+    }
 
     const userAgent = request.headers.get("user-agent") || undefined;
 
@@ -373,6 +377,7 @@ export async function collectRequestHandler(
             host: params.h,
             path: params.p,
             referrer: params.r,
+            clientPageviewId: clientPageviewId.value,
             userAgent,
             country: data.country,
             region: data.region,

@@ -68,6 +68,13 @@ function getBrowserReferrer(hostname: string, referrer: string): string {
     return getReferrer(hostname, "");
 }
 
+function createClientPageviewId(): string {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return `pv_${crypto.randomUUID()}`;
+    }
+    return `pv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+}
+
 export async function trackPageview(
     client: Client,
     opts: TrackPageviewOpts = {},
@@ -94,6 +101,7 @@ export async function trackPageview(
     const referrer = getBrowserReferrer(hostname, opts.referrer || "");
     const utmParams = getUtmParamsFromBrowserUrl(url);
     const identityContext = client.identity.getContext();
+    const clientPageviewId = createClientPageviewId();
 
     let hitType: string | undefined;
     try {
@@ -115,8 +123,10 @@ export async function trackPageview(
         utmParams,
         hitType,
         identityContext,
+        clientPageviewId,
     );
 
     makeRequest(client.reporterUrl, requestParams);
+    client.engagement.startPage(path, clientPageviewId);
     client.presence?.updatePage(path);
 }

@@ -150,6 +150,7 @@ describe("Shared Request Utils", () => {
                     identityScope: "persistent",
                     clientTime: 1767225600000,
                 },
+                "client-pv-1",
             );
 
             expect(result).toEqual({
@@ -161,6 +162,7 @@ describe("Shared Request Utils", () => {
                 cid: "visitor-1",
                 vid: "visit-1",
                 tid: "tab-1",
+                pid: "client-pv-1",
                 isc: "persistent",
                 ct: "1767225600000",
             });

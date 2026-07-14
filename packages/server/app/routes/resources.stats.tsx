@@ -17,6 +17,10 @@ import {
     type MetricComparison,
 } from "~/analytics/comparison";
 import type { AnalyticsCountResult } from "~/analytics/query";
+import {
+    getEngagementOverview,
+    type EngagementOverview,
+} from "~/lib/engagement";
 
 function bounceRateForCounts(counts: AnalyticsCountResult) {
     return counts.visitors > 0 ? counts.bounces / counts.visitors : undefined;
@@ -33,6 +37,33 @@ function hasSufficientBounceCoverage(
         (earliestEvent.getTime() === earliestBounce.getTime() ||
             earliestBounce.getTime() <= windowStart.getTime())
     );
+}
+
+function unavailableEngagement(reason: EngagementOverview["reason"]): EngagementOverview {
+    return {
+        available: false,
+        reason,
+        coverageStartedAt: null,
+        visits: 0,
+        pageviews: 0,
+        averageDurationMs: null,
+        averagePageDepth: null,
+        durationBuckets: [
+            { bucket: "0-10s", visits: 0 },
+            { bucket: "10-30s", visits: 0 },
+            { bucket: "30-60s", visits: 0 },
+            { bucket: "1-3m", visits: 0 },
+            { bucket: "3-10m", visits: 0 },
+            { bucket: "10m+", visits: 0 },
+        ],
+        depthBuckets: [
+            { bucket: "1", visits: 0 },
+            { bucket: "2", visits: 0 },
+            { bucket: "3-5", visits: 0 },
+            { bucket: "6-10", visits: 0 },
+            { bucket: "10+", visits: 0 },
+        ],
+    };
 }
 
 export async function loader({ context, request }: LoaderFunctionArgs) {
@@ -70,6 +101,9 @@ export async function loader({ context, request }: LoaderFunctionArgs) {
         tz,
         filters,
     );
+    const engagementPromise = context.cloudflare.env.DB
+        ? getEngagementOverview(context.cloudflare.env.DB, site, windows.current)
+        : Promise.resolve(unavailableEngagement("db-unavailable"));
     const counts = await currentCountsPromise;
 
     const { earliestEvent, earliestBounce } = await earliestEvents;
@@ -88,6 +122,7 @@ export async function loader({ context, request }: LoaderFunctionArgs) {
 
     const bounceRate = bounceRateForCounts(counts);
     const previousCounts = await previousCountsPromise;
+    const engagement = await engagementPromise;
     const previousBounceRate = bounceRateForCounts(previousCounts);
 
     const previous = {
@@ -157,6 +192,7 @@ export async function loader({ context, request }: LoaderFunctionArgs) {
             previous,
             yearOverYear,
         },
+        engagement,
     };
 }
 
@@ -190,6 +226,28 @@ function formatComparisonDelta(
     return `${sign}${Math.round(comparison.percentDelta * 100)}%`;
 }
 
+function formatDurationMs(ms: number, locale: string) {
+    const totalSeconds = Math.max(0, Math.round(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (locale === "zh") {
+        if (minutes <= 0) return `${seconds}秒`;
+        if (seconds <= 0) return `${minutes}分`;
+        return `${minutes}分${seconds}秒`;
+    }
+
+    if (minutes <= 0) return `${seconds}s`;
+    if (seconds <= 0) return `${minutes}m`;
+    return `${minutes}m ${seconds}s`;
+}
+
+function formatPageDepth(depth: number, locale: string) {
+    return locale === "zh"
+        ? `${depth.toFixed(1)} 页/次`
+        : `${depth.toFixed(1)} / visit`;
+}
+
 export const StatsCard = ({
     siteId,
     interval,
@@ -202,11 +260,19 @@ export const StatsCard = ({
     timezone: string;
 }) => {
     const dataFetcher = useFetcher<typeof loader>();
-    const { t } = useLocale();
+    const { locale, t } = useLocale();
 
-    const { views, visitors, bounceRate, hasSufficientBounceData, comparisons } =
+    const { views, visitors, bounceRate, hasSufficientBounceData, comparisons, engagement } =
         dataFetcher.data || {};
     const countFormatter = Intl.NumberFormat("zh-CN", { notation: "compact" });
+    const averageDuration =
+        engagement?.available && engagement.averageDurationMs !== null
+            ? formatDurationMs(engagement.averageDurationMs, locale)
+            : "n/a";
+    const averageDepth =
+        engagement?.available && engagement.averagePageDepth !== null
+            ? formatPageDepth(engagement.averagePageDepth, locale)
+            : "n/a";
 
     useEffect(() => {
         const params = new URLSearchParams({
@@ -238,7 +304,7 @@ export const StatsCard = ({
             loading={dataFetcher.state !== "idle"}
             contentClassName="p-4 sm:p-5"
         >
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <MetricTile
                     label={t("metrics.uv")}
                     value={visitors ? countFormatter.format(visitors) : "—"}
@@ -276,6 +342,20 @@ export const StatsCard = ({
                         t,
                     )}
                     tone="heat"
+                    loading={loading}
+                />
+                <MetricTile
+                    label={t("metrics.avgDuration")}
+                    value={averageDuration}
+                    hint={t("console.overview.durationHint")}
+                    tone="success"
+                    loading={loading}
+                />
+                <MetricTile
+                    label={t("metrics.avgDepth")}
+                    value={averageDepth}
+                    hint={t("console.overview.depthHint")}
+                    tone="default"
                     loading={loading}
                 />
             </div>

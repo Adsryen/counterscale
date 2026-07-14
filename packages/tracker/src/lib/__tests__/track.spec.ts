@@ -84,6 +84,44 @@ describe("trackPageview", () => {
         );
     });
 
+    test("should attach a distinct client pageview id to each pageview request", async () => {
+        const client = new Client({
+            siteId: "test-site",
+            reporterUrl: "https://example.com/collect",
+            autoTrackPageviews: false,
+        });
+
+        await trackPageview(client);
+        await trackPageview(client, { url: "/second-path" });
+
+        const firstParams = makeRequestMock.mock.calls[0][1];
+        const secondParams = makeRequestMock.mock.calls[1][1];
+        expect(firstParams.pid).toEqual(expect.stringMatching(/^pv_/));
+        expect(secondParams.pid).toEqual(expect.stringMatching(/^pv_/));
+        expect(secondParams.pid).not.toBe(firstParams.pid);
+        expect(firstParams).not.toHaveProperty("ip");
+        expect(firstParams).not.toHaveProperty("client_ip");
+    });
+
+    test("should start engagement tracking for the collected pageview id", async () => {
+        const client = new Client({
+            siteId: "test-site",
+            reporterUrl: "https://example.com/collect",
+            autoTrackPageviews: false,
+        });
+        const startPage = vi.fn();
+        client.engagement = {
+            startPage,
+            flush: vi.fn(),
+            cleanup: vi.fn(),
+        } as unknown as Client["engagement"];
+
+        await trackPageview(client);
+
+        const params = makeRequestMock.mock.calls[0][1];
+        expect(startPage).toHaveBeenCalledWith("/test-path", params.pid);
+    });
+
     test("should make a request when host is not empty", async () => {
         const client = new Client({
             siteId: "test-site",
