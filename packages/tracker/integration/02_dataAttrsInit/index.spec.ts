@@ -1,10 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { isPageviewCollectRequest } from "../helpers";
 
 test("tracks outbound requests", async ({ page }) => {
     // Create a promise that will resolve when we see a request to /collect
-    const collectRequestPromise = page.waitForRequest((request) =>
-        request.url().includes("/collect"),
-    );
+    const collectRequestPromise = page.waitForRequest(isPageviewCollectRequest);
     await page.goto("http://localhost:3004/02_dataAttrsInit/");
     // Wait for the request to /collect
     const request = await collectRequestPromise;

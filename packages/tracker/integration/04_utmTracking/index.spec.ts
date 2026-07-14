@@ -1,9 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { isPageviewCollectRequest } from "../helpers";
 
 test("tracks UTM parameters when present in URL", async ({ page }) => {
-    const collectRequestPromise = page.waitForRequest((request) =>
-        request.url().includes("/collect"),
-    );
+    const collectRequestPromise = page.waitForRequest(isPageviewCollectRequest);
 
     await page.goto(
         "http://localhost:3004/04_utmTracking/?utm_source=google&utm_medium=cpc&utm_campaign=summer_sale&utm_term=analytics&utm_content=banner",
@@ -31,9 +30,7 @@ test("tracks UTM parameters when present in URL", async ({ page }) => {
 });
 
 test("tracks only non-empty UTM parameters", async ({ page }) => {
-    const collectRequestPromise = page.waitForRequest((request) =>
-        request.url().includes("/collect"),
-    );
+    const collectRequestPromise = page.waitForRequest(isPageviewCollectRequest);
 
     // Navigate with partial UTM parameters (empty utm_medium)
     await page.goto(
@@ -55,9 +52,7 @@ test("tracks only non-empty UTM parameters", async ({ page }) => {
 });
 
 test("handles URL-encoded UTM parameters", async ({ page }) => {
-    const collectRequestPromise = page.waitForRequest((request) =>
-        request.url().includes("/collect"),
-    );
+    const collectRequestPromise = page.waitForRequest(isPageviewCollectRequest);
 
     // Navigate with URL-encoded UTM parameters
     await page.goto(
@@ -76,9 +71,7 @@ test("handles URL-encoded UTM parameters", async ({ page }) => {
 });
 
 test("handles mixed UTM and non-UTM parameters", async ({ page }) => {
-    const collectRequestPromise = page.waitForRequest((request) =>
-        request.url().includes("/collect"),
-    );
+    const collectRequestPromise = page.waitForRequest(isPageviewCollectRequest);
 
     // Navigate with mixed parameters
     await page.goto(
@@ -104,9 +97,7 @@ test("handles mixed UTM and non-UTM parameters", async ({ page }) => {
 test("tracks referrer from query parameters when document.referrer is missing", async ({
     page,
 }) => {
-    const collectRequestPromise = page.waitForRequest((request) =>
-        request.url().includes("/collect"),
-    );
+    const collectRequestPromise = page.waitForRequest(isPageviewCollectRequest);
 
     // Navigate with referrer query parameter
     await page.goto(
@@ -128,9 +119,7 @@ test("tracks referrer from query parameters when document.referrer is missing", 
 test("prioritizes referrer query parameters in correct order", async ({
     page,
 }) => {
-    const collectRequestPromise = page.waitForRequest((request) =>
-        request.url().includes("/collect"),
-    );
+    const collectRequestPromise = page.waitForRequest(isPageviewCollectRequest);
 
     // Navigate with multiple referrer parameters - should use 'ref' (first in priority)
     await page.goto(

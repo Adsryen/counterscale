@@ -27,8 +27,12 @@ http.createServer(function (req, res) {
         // Handle cache endpoint - return numeric values for visit and bounce
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ v: 1, b: 1 }));
-    } else if (requestUrl.pathname === "/collect") {
-        // no-op writes to /collect
+    } else if (
+        requestUrl.pathname === "/collect" ||
+        requestUrl.pathname === "/collect/engagement" ||
+        requestUrl.pathname === "/presence/heartbeat"
+    ) {
+        // no-op analytics endpoints used by the tracker during tests
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end("{}");
     } else if (requestUrl.pathname.indexOf("..") !== -1) {

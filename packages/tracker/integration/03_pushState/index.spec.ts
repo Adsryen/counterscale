@@ -1,4 +1,5 @@
 import { test, expect, type Request } from "@playwright/test";
+import { isPageviewCollectRequest } from "../helpers";
 
 test("tracks pushState and popState events as pageviews", async ({ page }) => {
     // Listen for all console events and handle errors
@@ -8,7 +9,7 @@ test("tracks pushState and popState events as pageviews", async ({ page }) => {
 
     const collectRequests: Request[] = [];
     page.on("request", (request) => {
-        if (request.url().includes("/collect")) {
+        if (isPageviewCollectRequest(request)) {
             collectRequests.push(request);
         }
     });
