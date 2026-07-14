@@ -5,6 +5,8 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
     test: {
         exclude: ["integration"],
+        pool: "threads",
+        maxWorkers: 1,
         coverage: {
             provider: "v8", // or 'v8'
             exclude: [
