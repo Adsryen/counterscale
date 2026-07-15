@@ -113,8 +113,11 @@ export async function getExitPageSummary(
     range: EntryExitDateRange,
     filters: SearchFilters = {},
 ): Promise<EntryExitPageSummary> {
+    // Qualify path as exit_path so GROUP BY / ORDER BY cannot collide with
+    // pageviews.path after the LEFT JOIN (SQLite: "ambiguous column name: path").
+    const pathExpr = `COALESCE(NULLIF(TRIM(f.path), ''), '${UNKNOWN_PATH_LABEL}')`;
     const pathFilterSql = filters.path
-        ? "WHERE COALESCE(NULLIF(TRIM(path), ''), ?) = ?"
+        ? `WHERE COALESCE(NULLIF(TRIM(ep.path), ''), ?) = ?`
         : "";
     const binds = rangeBinds(siteId, range, filters);
     const sqlBinds = filters.path
@@ -146,12 +149,12 @@ export async function getExitPageSummary(
                 WHERE rn = 1
              ),
              filtered_exit_pageviews AS (
-                SELECT *
-                FROM exit_pageviews
+                SELECT ep.site_id, ep.visit_id, ep.path
+                FROM exit_pageviews ep
                 ${pathFilterSql}
              )
              SELECT
-                COALESCE(NULLIF(TRIM(f.path), ''), '${UNKNOWN_PATH_LABEL}') AS path,
+                ${pathExpr} AS path,
                 COUNT(DISTINCT f.visit_id) AS sessions,
                 COUNT(p.pageview_id) AS views
              FROM filtered_exit_pageviews f
@@ -159,11 +162,11 @@ export async function getExitPageSummary(
                 ON p.site_id = f.site_id
                AND p.visit_id = f.visit_id
                AND COALESCE(NULLIF(TRIM(p.path), ''), '${UNKNOWN_PATH_LABEL}') =
-                   COALESCE(NULLIF(TRIM(f.path), ''), '${UNKNOWN_PATH_LABEL}')
+                   ${pathExpr}
                AND p.occurred_at >= ?
                AND p.occurred_at < ?
-             GROUP BY path
-             ORDER BY sessions DESC, path ASC
+             GROUP BY ${pathExpr}
+             ORDER BY sessions DESC, ${pathExpr} ASC
              LIMIT 10`,
         )
         .bind(

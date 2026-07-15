@@ -32,14 +32,21 @@ export async function loader({ context, request }: LoaderFunctionArgs) {
     const url = new URL(request.url);
     const tz = url.searchParams.get("timezone") || "UTC";
     const filters = getFiltersFromSearchParams(url.searchParams);
-    const summary = context.cloudflare.env.DB
-        ? await getEntryPageSummary(
-              context.cloudflare.env.DB,
-              site,
-              getDateTimeRange(interval, tz),
-              filters,
-          )
-        : unavailableEntryExitSummary();
+    let summary = unavailableEntryExitSummary();
+    if (context.cloudflare.env.DB) {
+        try {
+            summary = await getEntryPageSummary(
+                context.cloudflare.env.DB,
+                site,
+                getDateTimeRange(interval, tz),
+                filters,
+            );
+        } catch (err) {
+            // Keep the dashboard usable if entry-page SQL fails (e.g. schema drift).
+            console.error("getEntryPageSummary failed", err);
+            summary = unavailableEntryExitSummary();
+        }
+    }
 
     return {
         countsByProperty: summary.countsByProperty,
