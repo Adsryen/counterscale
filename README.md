@@ -6,6 +6,9 @@
 [![License](https://img.shields.io/github/license/benvinegar/counterscale)](https://github.com/benvinegar/counterscale/blob/master/LICENSE)
 [![codecov](https://codecov.io/gh/benvinegar/counterscale/graph/badge.svg?token=NUHURNB682)](https://codecov.io/gh/benvinegar/counterscale)
 
+#已迁移至：https://github.com/Adsryen/qingstat
+
+
 Counterscale 是一款可自托管在 [Cloudflare](https://cloudflare.com) 上的简易网站分析（Web Analytics）追踪器与仪表盘。
 
 它的目标是部署简单、维护成本低，即便流量较大，运营费用也接近为零——Cloudflare [Workers 免费额度](https://developers.cloudflare.com/workers/platform/pricing/#workers) 理论上可支撑约每天 10 万次访问。
